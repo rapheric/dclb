@@ -35,3 +35,19 @@ export const getUsers = async (req, res) => {
   const users = await User.find();
   res.status(200).json(users);
 };
+
+
+
+// controllers/userController.js
+// import User from "../models/User.js";
+
+// Get all RMs
+export const getRMs = async (req, res) => {
+  try {
+    const rms = await User.find({ role: "rm" }).select("_id name");
+    res.json(rms);
+  } catch (err) {
+    console.error("Failed to fetch RMs:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

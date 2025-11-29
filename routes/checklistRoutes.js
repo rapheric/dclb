@@ -1,26 +1,84 @@
+// routes/checklistRoutes.js
+
 import express from "express";
+import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import multer from "multer"; // Still needed for middleware
+import { upload } from "../middleware/upload.js"; // File upload middleware
+
+// 1. Import RM-specific/General actions from the main controller
+import {
+  uploadDocuments,
+  deferDocument,
+  getRmQueue,
+  getChecklistsForRM,
+  submitRmChecklist,
+  requestDeferral,
+  submitChecklistToCoCreator,
+  uploadDocument, 
+} from "../controllers/checklistController.js";
+
+// 2. Import Co-Creator/Admin/General actions from the Co-Creator controller
 import {
   createChecklist,
+  coCreatorReview,
   getChecklists,
   getChecklistById,
-  // updateDocument,
-  countChecklists,
-  getChecklistsByRM,
-  // getChecklistById,
-  updateDocumentInChecklist,
-  getDocumentSummaryByLoan,
-  getDocSamSummary,
-} from "../controllers/checklistController.js";
+  getChecklistByDclNo,
+  coCheckerApproval,
+  updateDocumentAdmin, 
+  updateChecklist,
+  getDashboardStats,
+} from "../controllers/coCreator.js";
 
 const router = express.Router();
 
-router.post("/", createChecklist);
-router.get("/", getChecklists);
-router.get("/count", countChecklists);
-router.get("/:id", getChecklistById);
-// router.get("/rm/:rmId", getChecklistsByRM);
-router.get("/document-summary-by-loan", getDocumentSummaryByLoan);
-router.get("/", getDocSamSummary);
-router.put("/:id/document/:docId", updateDocumentInChecklist);
+/* ==========================================================================
+   GENERAL & CO-CREATOR/ADMIN ROUTES
+   ========================================================================== */
+
+// Creation & General Info Retrieval
+router.post("/", protect, createChecklist); // Only Co-Creator/Admin should create
+router.put("/:id", protect, updateChecklist); // Admin update (e.g., required docs)
+
+router.get("/dashboard/stats", protect, getDashboardStats);
+router.get("/id/:id", protect, getChecklistById); // GET by MongoDB _id
+router.get("/dcl/:dclNo", protect, getChecklistByDclNo);
+router.get("/", protect, getChecklists); // GET Master List
+
+// Admin/Reviewer Workflow Actions
+router.put("/update-document", protect, updateDocumentAdmin); // <- FIX: Admin override
+router.put("/:id/co-create", protect, coCreatorReview);
+router.put("/:id/co-check", protect, coCheckerApproval);
+
+
+/* ==========================================================================
+   RM-SPECIFIC ROUTES
+   ========================================================================== */
+
+// Document Handling
+router.post(
+  "/upload",
+  protect,
+  upload.single("file"), // Multer middleware
+  uploadDocument // Single document upload by RM
+);
+router.put("/:id/upload", protect, uploadDocuments); // Batch document upload/update
+
+// Deferral
+router.post("/deferral", protect, requestDeferral);
+router.put("/:id/defer", protect, deferDocument);
+
+// RM Submission
+router.patch("/rm-submit", protect, submitChecklistToCoCreator); // Submit checklist to Co-Creator
+router.post("/rm-submit-legacy", protect, submitRmChecklist); // Legacy/alternative RM submit
+
+// RM Queues/Retrieval
+router.get(
+  "/rm/my-checklists",
+  protect,
+  authorizeRoles("rm"),
+  getChecklistsForRM // All checklists assigned to the logged-in RM
+);
+router.get("/:rmId", protect, getRmQueue); // Get RM queue (by ID in params - less secure)
 
 export default router;

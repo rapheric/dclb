@@ -1,35 +1,54 @@
+
 import mongoose from "mongoose";
 
 const DocumentSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  status: { type: String, default: "" },
+  name: String,
+  category: String,
+  status: {
+    type: String,
+    enum: ["pending", "submitted", "approved", "rejected", "deferred", "uploaded"],
+    default: "pending",
+  },
   comment: { type: String, default: "" },
-  fileUrl: { type: String, default: null },
-});
+  action: { type: String, default: "" },
 
-const CategorySchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  documents: [DocumentSchema],
+  fileUrl: { type: String, default: "" },
+
+  deferralReason: { type: String, default: "" },
+  deferralRequested: { type: Boolean, default: false },
 });
 
 const ChecklistSchema = new mongoose.Schema(
   {
-    loanType: {
-      type: String,
-      enum: ["mortgage", "Sme loan"],
-      required: true,
-    },
-    applicantName: { type: String, required: true },
-    applicantId: { type: String },
-    categories: [CategorySchema],
-    // rmId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    rmId: { type: mongoose.Schema.Types.ObjectId, ref: "RM", required: true },
+    dclNo: { type: String, required: true },
 
-    // createdBy: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "User",
-    //   required: true,
-    // },
+    customerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
+    customerNumber: { type: String, default: "" },
+    customerName: { type: String, default: "" },
+
+    title: { type: String, required: true },
+    loanType: { type: String, required: true },
+
+    assignedToRM: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
+
+    status: { type: String, default: "co_creator_review" },
+
+    // CATEGORY → DOCUMENT ARRAY
+    documents: [
+      {
+        category: String,
+        docList: [DocumentSchema],
+      },
+    ],
+
+    logs: [
+      {
+        message: String,
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

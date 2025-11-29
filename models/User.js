@@ -6,8 +6,15 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ["admin", "rm", "cocreator", "cochecker"], default: "admin" },
+    role: {
+      type: String,
+      enum: ["admin", "rm", "cocreator", "cochecker", "customer"],
+      default: "admin",
+    },
     active: { type: Boolean, default: true },
+    customerNumber: String,
+    customerId: { type: String, unique: true, sparse: true },
+    customerNumber: String,
 
     // ⭐ Added RM ID field
     rmId: { type: String, unique: true, sparse: true },
