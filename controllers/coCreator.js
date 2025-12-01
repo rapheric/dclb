@@ -8,8 +8,23 @@ import { generateDclNumber, addLog } from "../helpers/checklistHelpers.js";
 // Initialize a new Checklist (DCL) and assign to an RM
 export const createChecklist = async (req, res) => {
   try {
-    
     const dclNo = await generateDclNumber();
+    const flatDocuments = req.body.documents || [];
+
+    // 1. Group the flat documents by category to match the Mongoose schema
+    const groupedDocuments = flatDocuments.reduce((acc, doc) => {
+      // Find or create the category object
+      let categoryObject = acc.find((c) => c.category === doc.category);
+
+      if (!categoryObject) {
+        categoryObject = { category: doc.category, docList: [] };
+        acc.push(categoryObject);
+      }
+
+      categoryObject.docList.push(doc);
+
+      return acc;
+    }, []);
 
     const checklist = await Checklist.create({
       dclNo,
@@ -21,23 +36,20 @@ export const createChecklist = async (req, res) => {
       // General Info
       title: req.body.title,
       loanType: req.body.loanType,
-      
+
       // Assignments
       assignedToRM: req.body.assignedToRM,
       createdBy: req.user?.id || null,
 
       // Initial Document Setup
-      documents: req.body.documents || [],
-      status: "creator_submitted",
+      documents: groupedDocuments,
+      status: "co_creator_review",
     });
-
-    console.log(checklist, "checklist");
 
     addLog(checklist, "Checklist created", req.user?.id);
     await checklist.save();
 
     res.json(checklist);
-    
   } catch (error) {
     console.error("🔥 BACKEND ERROR:", error);
     res.status(500).json({ error: error.message });
@@ -48,7 +60,8 @@ export const createChecklist = async (req, res) => {
 export const updateChecklist = async (req, res) => {
   try {
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     const { documents } = req.body;
 
@@ -66,21 +79,28 @@ export const updateChecklist = async (req, res) => {
 // Admin override to update specific document status/comments manually
 export const updateDocumentAdmin = async (req, res) => {
   try {
-    const { checklistId, docIndex, fileUrl, status, deferralReason, comment } = req.body;
-    
+    const { checklistId, docIndex, fileUrl, status, deferralReason, comment } =
+      req.body;
+
     const checklist = await Checklist.findById(checklistId);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     if (checklist.documents[docIndex]) {
       if (fileUrl) checklist.documents[docIndex].fileUrl = fileUrl;
       if (status) checklist.documents[docIndex].status = status;
-      if (deferralReason) checklist.documents[docIndex].deferralReason = deferralReason;
+      if (deferralReason)
+        checklist.documents[docIndex].deferralReason = deferralReason;
       if (comment) checklist.documents[docIndex].comment = comment;
     }
 
-    addLog(checklist, `Document ${docIndex} manually updated by Admin`, req.user.id);
+    addLog(
+      checklist,
+      `Document ${docIndex} manually updated by Admin`,
+      req.user.id
+    );
     await checklist.save();
-    
+
     res.status(200).json(checklist);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -99,9 +119,9 @@ export const coCreatorReview = async (req, res) => {
       { status: "co_creator_review" },
       { new: true }
     );
-    
+
     // Optional: addLog(checklist, "Under Co-Creator Review", req.user.id);
-    
+
     res.json(checklist);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -135,7 +155,8 @@ export const getChecklists = async (req, res) => {
     const checklists = await Checklist.find()
       .populate("createdBy", "name email")
       .populate("assignedToRM", "name email")
-      .sort({ createdAt: -1 });
+      .populate("assignedToCoChecker", "name email")
+      .sort({ updatedAt: -1 });
 
     res.json(checklists);
   } catch (err) {
@@ -170,9 +191,10 @@ export const getChecklistById = async (req, res) => {
   try {
     const { id } = req.params;
     const checklist = await Checklist.findById(id)
-     .populate("assignedToRM", "name email")
-     .populate("createdBy", "name email");
-        
+      .populate("assignedToRM", "name email")
+      .populate("assignedToCoChecker", "name email")
+      .populate("createdBy", "name email");
+
     if (!checklist) {
       return res.status(404).json({ error: "Checklist not found" });
     }

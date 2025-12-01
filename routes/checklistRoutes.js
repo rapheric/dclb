@@ -29,6 +29,7 @@ import {
   updateChecklist,
   getDashboardStats,
 } from "../controllers/coCreator.js";
+import { updateChecklistStatus } from "../controllers/statusController.js";
 
 const router = express.Router();
 
@@ -49,6 +50,9 @@ router.get("/", protect, getChecklists); // GET Master List
 router.put("/update-document", protect, updateDocumentAdmin); // <- FIX: Admin override
 router.put("/:id/co-create", protect, coCreatorReview);
 router.put("/:id/co-check", protect, coCheckerApproval);
+
+// Used for transitions like "Submit to Checker" where documents and status change
+router.patch("/:id/checklist-status", protect, updateChecklistStatus);
 
 
 /* ==========================================================================

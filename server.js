@@ -10,7 +10,9 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE"] }));
+app.use(
+  cors({ origin: "*", methods: ["GET", "POST", "PUT", "PATCH", "DELETE"] })
+);
 
 app.use(express.json());
 
@@ -18,7 +20,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/checklist", checklistRoutes);
 // RM routes
-app.use("/api/rms",userRoutes );
+app.use("/api/rms", userRoutes);
 
 app.listen(process.env.PORT || 5000, () =>
   console.log(`✅ Server running on port ${process.env.PORT}`)

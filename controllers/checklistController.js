@@ -4,7 +4,6 @@ import { generateDclNumber, addLog } from "../helpers/checklistHelpers.js";
 // import multer from "multer";
 // const upload = multer({ dest: "uploads/" });
 
-
 // export const createChecklist = async (req, res) => {
 //   try {
 //     const dclNo = generateDclNumber();
@@ -51,7 +50,6 @@ import { generateDclNumber, addLog } from "../helpers/checklistHelpers.js";
 //   // }
 // };
 
-
 // export const createChecklist = async (req, res) => {
 //   try {
 //     const dclNo = generateDclNumber();
@@ -85,7 +83,7 @@ import { generateDclNumber, addLog } from "../helpers/checklistHelpers.js";
 //   }
 // };
 
-// update docs controller 
+// update docs controller
 
 export const createChecklist = async (req, res) => {
   try {
@@ -110,17 +108,17 @@ export const createChecklist = async (req, res) => {
     await checklist.save();
 
     res.json(checklist);
-    
   } catch (error) {
     console.error("🔥 BACKEND ERROR:", error);
     res.status(500).json({ error: error.message });
   }
-}; 
+};
 
 export const updateChecklist = async (req, res) => {
   try {
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     const { documents } = req.body;
 
@@ -134,7 +132,6 @@ export const updateChecklist = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const uploadDocument = async (req, res) => {
   try {
@@ -150,12 +147,10 @@ export const uploadDocument = async (req, res) => {
     await checklist.save();
 
     res.json({ success: true, doc });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const requestDeferral = async (req, res) => {
   try {
@@ -184,7 +179,8 @@ export const submitRmChecklist = async (req, res) => {
     const { checklistId } = req.body;
 
     const checklist = await Checklist.findById(checklistId);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     checklist.status = "rm_submitted";
 
@@ -193,16 +189,13 @@ export const submitRmChecklist = async (req, res) => {
     await checklist.save();
 
     res.json({ success: true, checklist });
-
   } catch (error) {
     console.error("ERROR SUBMITTING RM CHECKLIST:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
-
-
-// // file upload controller 
+// // file upload controller
 
 // export const uploadDocument = async (req, res) => {
 //   try {
@@ -249,8 +242,6 @@ export const getDashboardStats = async (req, res) => {
   }
 };
 
-
-
 // ✅ Get all checklists
 // export const getChecklists = async (req, res) => {
 //   try {
@@ -261,7 +252,7 @@ export const getDashboardStats = async (req, res) => {
 //   }
 // };
 
-// 
+//
 // export const submitChecklistToCoCreator = async (req, res) => {
 //   try {
 //     const { checklistId, documents } = req.body;
@@ -286,12 +277,11 @@ export const getDashboardStats = async (req, res) => {
 //   }
 // };
 
-
 export const getChecklists = async (req, res) => {
   try {
     const checklists = await Checklist.find()
       .populate("createdBy", "name email")
-      .populate("assignedToRM", "name email")
+      .populate("assignedToRM", "name email");
 
     res.json(checklists);
   } catch (err) {
@@ -302,7 +292,6 @@ export const getChecklists = async (req, res) => {
     });
   }
 };
-
 
 /* ---------------------------------------------------------
    RM SUBMITS CHECKLIST TO CO-CREATOR
@@ -343,18 +332,33 @@ export const submitChecklistFromRM = async (req, res) => {
 
 export const submitChecklistToCoCreator = async (req, res) => {
   try {
-    const { checklistId, documents } = req.body;
+    const { checklistId, documents: flatDocuments } = req.body;
+
+    const groupedDocuments = flatDocuments.reduce((acc, doc) => {
+      // Find or create the category object in the accumulator array
+      let categoryObject = acc.find((c) => c.category === doc.category);
+
+      if (!categoryObject) {
+        categoryObject = { category: doc.category, docList: [] };
+        acc.push(categoryObject);
+      }
+
+      // Add the document to the category's docList
+      categoryObject.docList.push(doc);
+
+      return acc;
+    }, []);
 
     const updated = await Checklist.findByIdAndUpdate(
       checklistId,
       {
-        documents,
+        documents: groupedDocuments,
         status: "Pending Co-Creator Review",
         submittedByRM: true,
       },
       {
         new: true,
-        runValidators: false,  // << FIX
+        runValidators: false, // << FIX
       }
     );
 
@@ -371,8 +375,6 @@ export const submitChecklistToCoCreator = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-  
-
 
 // 2. RM uploads documents
 export const uploadDocuments = async (req, res) => {
