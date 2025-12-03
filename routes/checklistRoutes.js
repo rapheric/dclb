@@ -38,8 +38,8 @@ const router = express.Router();
    ========================================================================== */
 
 // Creation & General Info Retrieval
-router.post("/", protect,authorizeRoles("cocrerator") ,createChecklist);
-router.post("/" ,gyjhjvhghnb) // Only Co-Creator/Admin should create
+router.post("/", protect, authorizeRoles("cocrerator"), createChecklist);
+// router.post("/" ,gyjhjvhghnb) // Only Co-Creator/Admin should create
 router.put("/:id", protect, updateChecklist); // Admin update (e.g., required docs)
 
 router.get("/dashboard/stats", protect, getDashboardStats);
