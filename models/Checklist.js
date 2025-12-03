@@ -1,14 +1,38 @@
 import mongoose from "mongoose";
 
 const DocumentSchema = new mongoose.Schema({
+  rmAction: String,
+  rmStatus: String,
   name: String,
   category: String,
+  // status: {
+  //   type: String,
+  //   enum: ["pendingrm", "pendingco", "sighted", "waived", "deferred", "tbo"],
+  //   default: "pending",
+  // },
+
+  rmFile: String, // optional, blob or URL
+  coCreatorFiles: [
+    { name: String, url: String }, // array for multiple uploads
+  ],
+
   status: {
     type: String,
-    enum: ["pending", "submitted", "sighted", "waived", "deferred", "tbo"],
+    enum: [
+      "pending",
+      "pendingrm",
+      "pendingco",
+      "sighted",
+      "waived",
+      "deferred",
+      "submitted_for_review",
+      "tbo",
+    ],
     default: "pending",
   },
+
   comment: { type: String, default: "" },
+  rmComment: String,
   action: { type: String, default: "" },
 
   fileUrl: { type: String, default: "" },
@@ -35,7 +59,12 @@ const ChecklistSchema = new mongoose.Schema(
       ref: "User",
       required: false,
     },
-    customerNumber: { type: String, default: "" },
+    customerNumber: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: false,
+    },
+    // customerNumber: { type: String, default: "" },
     customerName: { type: String, default: "" },
     loanType: { type: String, required: true },
 
@@ -51,6 +80,9 @@ const ChecklistSchema = new mongoose.Schema(
       ref: "User",
       required: false,
     },
+
+    rmComment: String,
+    coComment: String,
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

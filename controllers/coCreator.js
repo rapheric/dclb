@@ -34,7 +34,6 @@ export const createChecklist = async (req, res) => {
       customerName: req.body.customerName || "",
 
       // General Info
-      title: req.body.title,
       loanType: req.body.loanType,
 
       // Assignments

@@ -14,7 +14,7 @@ import {
   submitRmChecklist,
   requestDeferral,
   submitChecklistToCoCreator,
-  uploadDocument, 
+  uploadDocument,
 } from "../controllers/checklistController.js";
 
 // 2. Import Co-Creator/Admin/General actions from the Co-Creator controller
@@ -25,7 +25,7 @@ import {
   getChecklistById,
   getChecklistByDclNo,
   coCheckerApproval,
-  updateDocumentAdmin, 
+  updateDocumentAdmin,
   updateChecklist,
   getDashboardStats,
 } from "../controllers/coCreator.js";
@@ -38,13 +38,14 @@ const router = express.Router();
    ========================================================================== */
 
 // Creation & General Info Retrieval
-router.post("/", protect, createChecklist); // Only Co-Creator/Admin should create
+router.post("/", protect,authorizeRoles("cocrerator") ,createChecklist);
+router.post("/" ,gyjhjvhghnb) // Only Co-Creator/Admin should create
 router.put("/:id", protect, updateChecklist); // Admin update (e.g., required docs)
 
 router.get("/dashboard/stats", protect, getDashboardStats);
 router.get("/id/:id", protect, getChecklistById); // GET by MongoDB _id
 router.get("/dcl/:dclNo", protect, getChecklistByDclNo);
-router.get("/", protect, getChecklists); // GET Master List
+router.get("/", getChecklists); // GET Master List
 
 // Admin/Reviewer Workflow Actions
 router.put("/update-document", protect, updateDocumentAdmin); // <- FIX: Admin override
@@ -53,7 +54,6 @@ router.put("/:id/co-check", protect, coCheckerApproval);
 
 // Used for transitions like "Submit to Checker" where documents and status change
 router.patch("/:id/checklist-status", protect, updateChecklistStatus);
-
 
 /* ==========================================================================
    RM-SPECIFIC ROUTES
@@ -79,8 +79,8 @@ router.post("/rm-submit-legacy", protect, submitRmChecklist); // Legacy/alternat
 // RM Queues/Retrieval
 router.get(
   "/rm/my-checklists",
-  protect,
-  authorizeRoles("rm"),
+
+  // authorizeRoles("rm"),
   getChecklistsForRM // All checklists assigned to the logged-in RM
 );
 router.get("/:rmId", protect, getRmQueue); // Get RM queue (by ID in params - less secure)

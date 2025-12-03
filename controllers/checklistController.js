@@ -141,7 +141,7 @@ export const uploadDocument = async (req, res) => {
     const doc = checklist.documents[catIdx].docList[docIdx];
 
     doc.fileUrl = `/uploads/${req.file.filename}`;
-    doc.status = "uploaded";
+    doc.status = "submitted";
 
     addLog(checklist, `File uploaded for ${doc.name}`, req.user.id);
     await checklist.save();
@@ -195,93 +195,13 @@ export const submitRmChecklist = async (req, res) => {
   }
 };
 
-// // file upload controller
 
-// export const uploadDocument = async (req, res) => {
-//   try {
-//     const { checklistId, documentName } = req.body;
-
-//     const checklist = await Checklist.findById(checklistId);
-//     const doc = checklist.documents.find((d) => d.name === documentName);
-
-//     const fileUrl = "/uploads/" + req.file.filename;
-
-//     // Replace the latest file
-//     doc.fileUrl = fileUrl;
-
-//     // Track in upload history
-//     doc.uploadHistory.push({
-//       url: fileUrl,
-//       uploadedBy: req.user.id,
-//     });
-
-//     addLog(checklist, "Document uploaded", req.user.id, documentName);
-
-//     await checklist.save();
-//     res.json(doc);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// dashboard stats
-
-export const getDashboardStats = async (req, res) => {
-  try {
-    const stats = {
-      total: await Checklist.countDocuments(),
-      pending: await Checklist.countDocuments({ status: "pending" }),
-      inProgress: await Checklist.countDocuments({ status: "in_progress" }),
-      submitted: await Checklist.countDocuments({ status: "submitted" }),
-      completed: await Checklist.countDocuments({ status: "completed" }),
-    };
-
-    res.json(stats);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// ✅ Get all checklists
-// export const getChecklists = async (req, res) => {
-//   try {
-//     const checklists = await Checklist.find().sort({ createdAt: -1 });
-//     res.status(200).json(checklists);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-//
-// export const submitChecklistToCoCreator = async (req, res) => {
-//   try {
-//     const { checklistId, documents } = req.body;
-
-//     // Find checklist by ID
-//     const checklist = await Checklist.findById(checklistId);
-//     if (!checklist) {
-//       return res.status(404).json({ message: "Checklist not found" });
-//     }
-
-//     // Update checklist documents and status
-//     checklist.documents = documents;
-//     checklist.status = "Pending Co-Creator Review";
-//     checklist.submittedByRM = true;
-
-//     await checklist.save();
-
-//     res.json({ success: true, message: "Checklist submitted to Co-Creator" });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
 
 export const getChecklists = async (req, res) => {
   try {
-    const checklists = await Checklist.find()
-      .populate("createdBy", "name email")
-      .populate("assignedToRM", "name email");
+    const checklists = await Checklist.find();
+    // .populate("createdBy", "name email")
+    // .populate("assignedToRM", "name email");
 
     res.json(checklists);
   } catch (err) {
