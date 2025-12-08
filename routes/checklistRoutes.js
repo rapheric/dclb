@@ -38,13 +38,13 @@ const router = express.Router();
    ========================================================================== */
 
 // Creation & General Info Retrieval
-router.post("/", protect, createChecklist); // Only Co-Creator/Admin should create
+router.post("/", protect, authorizeRoles("cocreator"), createChecklist); // Only Co-Creator/Admin should create
 router.put("/:id", protect, updateChecklist); // Admin update (e.g., required docs)
 
 router.get("/dashboard/stats", protect, getDashboardStats);
-router.get("/id/:id", protect, getChecklistById); // GET by MongoDB _id
-router.get("/dcl/:dclNo", protect, getChecklistByDclNo);
-router.get("/", protect, getChecklists); // GET Master List
+router.get("/id/:id",protect,  getChecklistById); // GET by MongoDB _id
+router.get("/dcl/:dclNo", getChecklistByDclNo);
+router.get("/",protect,authorizeRoles("cocreator", "rm") , getChecklists); // GET Master List
 
 // Admin/Reviewer Workflow Actions
 router.put("/update-document", protect, updateDocumentAdmin); // <- FIX: Admin override
