@@ -61,16 +61,8 @@ export const loginAdmin = async (req, res) => {
   }
 };
 
-// Create a user
-// export const createUser = async (req, res) => {
-//   const { username, email, password, role } = req.body;
 
-//   const exists = await User.findOne({ email });
-//   if (exists) return res.status(400).json({ message: "User already exists" });
 
-//   const user = await User.create({ username, email, password, role });
-//   res.status(201).json(user);
-// };
 
 export const createUser = async (req, res) => {
   try {
@@ -80,19 +72,33 @@ export const createUser = async (req, res) => {
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "User already exists" });
 
-    // If role is RM, generate a unique rmId
     let rmId;
+    let customerNumber;
+
     if (role === "rm") {
-      rmId = uuidv4(); // generates something like "550e8400-e29b-41d4-a716-446655440000"
+      // Generate a unique RM ID
+      rmId = uuidv4();
+    }
+
+    if (role === "customer") {
+      // Generate a unique customer number (e.g., "CUST-xxxxxx")
+      let isUnique = false;
+      while (!isUnique) {
+        const randomNumber = Math.floor(100000 + Math.random() * 900000); // 6-digit number
+        customerNumber = `CUST-${randomNumber}`;
+        const existingCustomer = await User.findOne({ customerNumber });
+        if (!existingCustomer) isUnique = true;
+      }
     }
 
     // Create the user
-    const user = await User.create({ name, email, password, role, rmId });
+    const user = await User.create({ name, email, password, role, rmId, customerNumber });
     res.status(201).json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // Activate/deactivate
 export const toggleActive = async (req, res) => {

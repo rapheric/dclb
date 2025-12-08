@@ -28,6 +28,7 @@ import {
   updateDocumentAdmin,
   updateChecklist,
   getDashboardStats,
+  searchCustomer
 } from "../controllers/coCreator.js";
 import { updateChecklistStatus } from "../controllers/statusController.js";
 
@@ -46,6 +47,10 @@ router.get("/dashboard/stats", protect, getDashboardStats);
 router.get("/id/:id", protect, getChecklistById); // GET by MongoDB _id
 router.get("/dcl/:dclNo", protect, getChecklistByDclNo);
 router.get("/", getChecklists); // GET Master List
+
+// SEARCH A CUSTOMER
+router.get("/search", searchCustomer);
+
 
 // Admin/Reviewer Workflow Actions
 router.put("/update-document", protect, updateDocumentAdmin); // <- FIX: Admin override
@@ -73,7 +78,7 @@ router.post("/deferral", protect, requestDeferral);
 router.put("/:id/defer", protect, deferDocument);
 
 // RM Submission
-router.patch("/rm-submit", protect, submitChecklistToCoCreator); // Submit checklist to Co-Creator
+router.patch("/rm-submit", submitChecklistToCoCreator); // Submit checklist to Co-Creator
 router.post("/rm-submit-legacy", protect, submitRmChecklist); // Legacy/alternative RM submit
 
 // RM Queues/Retrieval

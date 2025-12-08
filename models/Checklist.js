@@ -1,109 +1,167 @@
+
+
+
 import mongoose from "mongoose";
 
-const DocumentSchema = new mongoose.Schema({
-  rmAction: String,
-  rmStatus: String,
-  name: String,
-  category: String,
-  // status: {
-  //   type: String,
-  //   enum: ["pendingrm", "pendingco", "sighted", "waived", "deferred", "tbo"],
-  //   default: "pending",
-  // },
+/* ======================================================
+   DOCUMENT SUB-SCHEMA
+   (Merged from both versions)
+====================================================== */
 
-  rmFile: String, // optional, blob or URL
-  coCreatorFiles: [
-    { name: String, url: String }, // array for multiple uploads
-  ],
-
-  status: {
-    type: String,
-    enum: [
-      "pending",
-      "pendingrm",
-      "pendingco",
-      "sighted",
-      "waived",
-      "deferred",
-      "submitted_for_review",
-      "tbo",
-    ],
-    default: "pending",
+const checklistItemSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"], // statuses for individual items
+      default: "Pending",
+    },
   },
+  { _id: false }
+);
 
-  comment: { type: String, default: "" },
-  rmComment: String,
-  action: { type: String, default: "" },
 
-  fileUrl: { type: String, default: "" },
+const DocumentSchema = new mongoose.Schema(
+  {
+    // ✔ Base details
+    name: { type: String },
+    category: { type: String },
 
-  deferralReason: { type: String, default: "" },
-  deferralRequested: { type: Boolean, default: false },
-});
+    // ✔ Status (combined from both lists)
+    status: {
+      type: String,
+      enum: [
+        // From model #1
+        "Pending RM",
+        "Pending Checker",
+        "Approved",
+        "Incomplete",
+        "Returned by Checker",
 
-// Define a common enum for all possible checklist workflow stages
+        // From model #2
+        "pending",
+        "pendingrm",
+        "submitted",
+        "pendingco",
+        "sighted",
+        "waived",
+        "deferred",
+        "submitted_for_review",
+        "tbo",
+      ],
+      default: "pending",
+    },
+
+    // ✔ RM Actions
+    rmAction: String,
+    rmStatus: String,
+    rmComment: String,
+    rmFile: String,
+
+    // ✔ Co-creator uploads (multiple)
+    coCreatorFiles: [{ name: String, url: String }],
+
+    // ✔ Document main upload
+    fileUrl: { type: String, default: "" },
+
+    // ✔ Additional workflow fields
+    action: { type: String, default: "" },
+    comment: { type: String, default: "" },
+
+    // ✔ Deferral handling
+    deferralReason: { type: String, default: "" },
+    deferralRequested: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+    /* ======================================================
+   CHECKLIST STATUS ENUM 
+   (Combined + cleaned)
+====================================================== */
 const CHECKLIST_STATUS_ENUM = [
+  // From model #1
+  "Pending RM",
+  "Pending Checker",
+  "Incomplete",
+  "Returned by Checker",
+  "Approved",
+
+  // From model #2
   "co_creator_review",
   "rm_review",
   "co_checker_review",
-  "approved", // Final status
-  "rejected", // Final status
+  "rejected",
+  "active",
+  "completed",
+  "submitted"
 ];
 
+/* ======================================================
+   MAIN CHECKLIST MODEL
+   (Merged fields from both)
+====================================================== */
 const ChecklistSchema = new mongoose.Schema(
   {
+    /* ---------------------------------------------
+       Primary Customer + Loan Details
+    --------------------------------------------- */
     dclNo: { type: String, required: true },
-
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: false,
     },
-    customerNumber: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: false,
-    },
-    // customerNumber: { type: String, default: "" },
-    customerName: { type: String, default: "" },
-    loanType: { type: String, required: true },
 
+    customerNumber: {
+  type: String,
+  required: true,
+  unique: true
+},
+    customerNo: { type: String }, // From model #1
+    customerName: { type: String, required: false },
+    product: { type: String }, // From model #1
+    loanType: { type: String }, // From model #2
+
+    /* ---------------------------------------------
+       Assigned Users
+    --------------------------------------------- */
+    rm: { type: String }, // model #1 simple RM string
     assignedToRM: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
-
-    // assign the final checker (co-checker)
     assignedToCoChecker: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: false,
     },
-
-    rmComment: String,
-    coComment: String,
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: false,
     },
 
-    // Central status reflecting the current stage of the workflow
+     checklist: [checklistItemSchema],
+
+    /* ---------------------------------------------
+       Status + Workflow
+    --------------------------------------------- */
     status: {
       type: String,
       enum: CHECKLIST_STATUS_ENUM,
       default: "co_creator_review",
     },
+    progress: { type: Number, default: 0 },
+    lastUpdated: { type: Date, default: Date.now },
+    submittedToCoChecker: { type: Boolean, default: false },
 
-    // Flag to control edits from the RM side after Co-Creator submission
-    submittedToCoChecker: {
-      type: Boolean,
-      default: false,
-    },
+    /* ---------------------------------------------
+       Comments
+    --------------------------------------------- */
+    rmComment: String,
+    coComment: String,
 
-    // CATEGORY → DOCUMENT ARRAY
+    /* ---------------------------------------------
+       Documents (category → documents[])
+    --------------------------------------------- */
     documents: [
       {
         category: String,
@@ -111,6 +169,9 @@ const ChecklistSchema = new mongoose.Schema(
       },
     ],
 
+    /* ---------------------------------------------
+       Logs / Activity Timeline
+    --------------------------------------------- */
     logs: [
       {
         message: String,
@@ -122,4 +183,7 @@ const ChecklistSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/* ======================================================
+   EXPORT FINAL MODEL
+====================================================== */
 export default mongoose.model("Checklist", ChecklistSchema);
