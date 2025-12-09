@@ -20,7 +20,7 @@ import {
   uploadDocumentFile,
   updateDocumentAdmin,
 } from "../controllers/cocreatorController.js";
-  
+
 const router = express.Router();
 
 // --- Creation & General Info ---

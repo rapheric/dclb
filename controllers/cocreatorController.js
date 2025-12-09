@@ -2,35 +2,70 @@
 import Checklist from "../models/Checklist.js";
 import { addLog, generateDclNumber } from "../helpers/checklistHelpers.js";
 
-/* ---------------------------
-   CREATE CHECKLIST
---------------------------- */
+//  CREATE CHECKLIST
+
 export const createChecklist = async (req, res) => {
   try {
-    const dclNo = generateDclNumber();
+    const {
+      customerId,
+      customerNumber,
+      customerName,
+      loanType,
+      assignedToRM,
+      documents,
+    } = req.body;
+
+    // FIX: Await the DCL generator
+    const dclNo = await generateDclNumber();
 
     const checklist = await Checklist.create({
       dclNo,
-      customerId: req.body.customerId || null,
-      customerNumber: req.body.customerNumber || "",
-      customerName: req.body.customerName || "",
-      title: req.body.title,
-      loanType: req.body.loanType,
-      assignedToRM: req.body.assignedToRM,
-      createdBy: req.user?.id || null,
-      documents: req.body.documents || [],
-      status: "creator_submitted",
+      customerId,
+      customerNumber,
+      customerName,
+      loanType,
+      assignedToRM,
+      createdBy: req.user._id,
+      documents,
     });
 
-    addLog(checklist, "Checklist created", req.user?.id);
-    await checklist.save();
-
-    res.json(checklist);
-  } catch (error) {
-    console.error("🔥 BACKEND ERROR:", error);
-    res.status(500).json({ error: error.message });
+    res.status(201).json({
+      message: "Checklist created successfully",
+      checklist,
+    });
+  } catch (err) {
+    console.log("CREATE CHECKLIST ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
 };
+
+// --------------------------- */
+// export const createChecklist = async (req, res) => {
+//   try {
+//     const dclNo = generateDclNumber();
+
+//     const checklist = await Checklist.create({
+//       dclNo,
+//       customerId: req.body.customerId || null,
+//       customerNumber: req.body.customerNumber || "",
+//       customerName: req.body.customerName || "",
+//       title: req.body.title,
+//       loanType: req.body.loanType,
+//       assignedToRM: req.body.assignedToRM,
+//       createdBy: req.user?.id || null,
+//       documents: req.body.documents || [],
+//       status: "creator_submitted",
+//     });
+
+//     addLog(checklist, "Checklist created", req.user?.id);
+//     await checklist.save();
+
+//     res.json(checklist);
+//   } catch (error) {
+//     console.error("🔥 BACKEND ERROR:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 
 // search  a customer
 export const searchCustomer = async (req, res) => {
@@ -47,7 +82,6 @@ export const searchCustomer = async (req, res) => {
   }
 };
 
-
 /* ---------------------------
    GET CHECKLISTS
 --------------------------- */
@@ -60,7 +94,9 @@ export const getChecklists = async (req, res) => {
     res.json(checklists);
   } catch (err) {
     console.error("❌ GET CHECKLISTS ERROR:", err);
-    res.status(500).json({ message: "Error fetching checklists", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching checklists", error: err.message });
   }
 };
 
@@ -70,7 +106,8 @@ export const getChecklists = async (req, res) => {
 export const getChecklistById = async (req, res) => {
   try {
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
     res.json(checklist);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -84,7 +121,8 @@ export const getChecklistByDclNo = async (req, res) => {
   try {
     const { dclNo } = req.params;
     const checklist = await Checklist.findOne({ dclNo });
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
     res.json({ checklist });
   } catch (error) {
     console.error("Error fetching checklist:", error);
@@ -110,7 +148,8 @@ export const getDCLs = async (req, res) => {
 export const updateChecklist = async (req, res) => {
   try {
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     const { documents, status } = req.body;
     if (documents) checklist.documents = documents;
@@ -182,9 +221,13 @@ export const coCreatorReview = async (req, res) => {
       { new: true }
     );
 
-    if (!updatedChecklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!updatedChecklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
-    res.json({ message: "Checklist sent for Co-Creator review", checklist: updatedChecklist });
+    res.json({
+      message: "Checklist sent for Co-Creator review",
+      checklist: updatedChecklist,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -208,9 +251,13 @@ export const coCheckerApproval = async (req, res) => {
       { new: true }
     );
 
-    if (!updatedChecklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!updatedChecklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
-    res.json({ message: "Checklist approved by Co-Checker", checklist: updatedChecklist });
+    res.json({
+      message: "Checklist approved by Co-Checker",
+      checklist: updatedChecklist,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -223,7 +270,8 @@ export const addDocument = async (req, res) => {
   try {
     const { category, doc } = req.body;
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     let categoryObj = checklist.documents.find((c) => c.category === category);
     if (!categoryObj) {
@@ -243,7 +291,8 @@ export const updateDocument = async (req, res) => {
   try {
     const { docId, fileUrl, status, deferralReason, comment } = req.body;
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     checklist.documents.forEach((category) => {
       category.docList.forEach((doc) => {
@@ -267,10 +316,13 @@ export const deleteDocument = async (req, res) => {
   try {
     const { docId } = req.params;
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     checklist.documents.forEach((category) => {
-      category.docList = category.docList.filter((doc) => doc._id.toString() !== docId);
+      category.docList = category.docList.filter(
+        (doc) => doc._id.toString() !== docId
+      );
     });
 
     await checklist.save();
@@ -284,11 +336,14 @@ export const uploadDocumentFile = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "File missing" });
 
-    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
+      req.file.filename
+    }`;
     const { docId } = req.params;
 
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ error: "Checklist not found" });
 
     checklist.documents.forEach((category) => {
       category.docList.forEach((doc) => {

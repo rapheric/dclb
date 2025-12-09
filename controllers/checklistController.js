@@ -87,32 +87,70 @@ import { generateDclNumber, addLog } from "../helpers/checklistHelpers.js";
 
 export const createChecklist = async (req, res) => {
   try {
-    const dclNo = generateDclNumber();
+    const {
+      customerId,
+      customerNumber,
+      customerName,
+      loanType,
+      assignedToRM,
+      documents,
+    } = req.body;
+
+    // FIX: Await the DCL generator
+   const dclNo = await generateDclNumber();
 
     const checklist = await Checklist.create({
       dclNo,
-      customerId: req.body.customerId || null,
-      customerNumber: req.body.customerNumber || "",
-      customerName: req.body.customerName || "",
-
-      title: req.body.title,
-      loanType: req.body.loanType,
-      assignedToRM: req.body.assignedToRM,
-      createdBy: req.user?.id || null,
-
-      documents: req.body.documents || [],
-      status: "creator_submitted",
+      customerId,
+      customerNumber,
+      customerName,
+      loanType,
+      assignedToRM,
+      createdBy: req.user._id,
+      documents,
     });
 
-    addLog(checklist, "Checklist created", req.user?.id);
-    await checklist.save();
+    res.status(201).json({
+      message: "Checklist created successfully",
+      checklist,
+    });
 
-    res.json(checklist);
-  } catch (error) {
-    console.error("🔥 BACKEND ERROR:", error);
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.log("CREATE CHECKLIST ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
 };
+
+
+// export const createChecklist = async (req, res) => {
+//   try {
+//     // const dclNo = generateDclNumber();
+//     const dclNo = await generateDclNumber();
+
+//     const checklist = await Checklist.create({
+//       dclNo,
+//       customerId: req.body.customerId || null,
+//       customerNumber: req.body.customerNumber || "",
+//       customerName: req.body.customerName || "",
+
+//       title: req.body.title,
+//       loanType: req.body.loanType,
+//       assignedToRM: req.body.assignedToRM,
+//       createdBy: req.user?.id || null,
+
+//       documents: req.body.documents || [],
+//       status: "creator_submitted",
+//     });
+
+//     addLog(checklist, "Checklist created", req.user?.id);
+//     await checklist.save();
+
+//     res.json(checklist);
+//   } catch (error) {
+//     console.error("🔥 BACKEND ERROR:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 
 export const updateChecklist = async (req, res) => {
   try {
@@ -194,8 +232,6 @@ export const submitRmChecklist = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
-
 
 export const getChecklists = async (req, res) => {
   try {

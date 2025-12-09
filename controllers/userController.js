@@ -1,13 +1,58 @@
 import User from "../models/User.js";
+// import { v4 as uuidv4 } from "uuid";
+import bcrypt from "bcryptjs";
+import UserLog from '../models/UserLog.js';
 
-// Admin creates user
 export const createUser = async (req, res) => {
-  const { name, email, password, role } = req.body;
-  const exists = await User.findOne({ email });
-  if (exists) return res.status(400).json({ message: "User already exists" });
+  try {
+    const { name, email, password, role } = req.body;
 
-  const user = await User.create({ name, email, password, role });
-  res.status(201).json({ message: "User created", user });
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: "User already exists" });
+
+    let rmId;
+    let customerNumber;
+
+    if (role === "rm") {
+      rmId = uuidv4();
+    }
+
+    if (role === "customer") {
+      let isUnique = false;
+      while (!isUnique) {
+        const randomNumber = Math.floor(100000 + Math.random() * 900000);
+        customerNumber = `CUST-${randomNumber}`;
+        const existingCustomer = await User.findOne({ customerNumber });
+        if (!existingCustomer) isUnique = true;
+      }
+    }
+
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      rmId,
+      customerNumber,
+    });
+
+     // Log
+  await UserLog.create({
+    action: 'CREATE_USER',
+    targetUserId: user._id,
+    targetEmail: user.email,
+    performedBy: req.user._id,
+    performedByEmail: req.user.email,
+  });
+
+    res.status(201).json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // Activate/Deactivate user
@@ -31,12 +76,27 @@ export const changeRole = async (req, res) => {
 };
 
 // Get all users
+
+// Add this if it's not there
 export const getUsers = async (req, res) => {
-  const users = await User.find();
-  res.status(200).json(users);
+  try {
+    const users = await User.find();
+    res.status(200).json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
+// get customers
 
+export const getCustomers = async (req, res) => {
+  try {
+    const users = await User.find();
+    res.status(200).json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // controllers/userController.js
 // import User from "../models/User.js";
@@ -51,3 +111,12 @@ export const getRMs = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+export const getStats = async (req, res) => {
+  const total = await User.countDocuments();
+  const active = await User.countDocuments({ active: true });
+  const inactive = total - active;
+  res.json({ total, active, inactive });
+};
+
