@@ -7,6 +7,8 @@ import userRoutes from "./routes/userRoutes.js";
 import logRoutes from "./routes/logRoutes.js";
 import path from "path";
 import coCreatorRoutes from "./routes/cocreatorRoutes.js";
+import rmRoutes from "./routes/rmRoutes.js";
+import checkerRoutes from "./routes/checkerRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -26,7 +28,9 @@ app.use("/api/checklist", coCreatorRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/user-logs", logRoutes);
-// app.use("/api/checklist", checklistRoutes);
+app.use("/api/checkerChecklist", checkerRoutes);
+app.use("/api/rmChecklist", rmRoutes);
+app.use("/api/cocreatorChecklist", coCreatorRoutes);
 
 // RM routes
 app.use("/api/rms", userRoutes);

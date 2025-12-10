@@ -1,16 +1,12 @@
-/ controllers/dcl.controller.js
 import {
   getRMQueueDCLs,
-  getRMCompletedDCLs,deleteDCL,
-} from "../services/services.js";
-// import Checklist from "../models/checklist.model.js";
+  // getRMCompletedDCLs,
+  deleteDCL,
+} from "../services/rmServices.js";
 import Checklist from "../models/Checklist.js";
 // import { addLog } from "../utils/logger.js";
 import Notification from "../models/Notification.js";
-
-
-// REMOVE DCL
-// controllers/dcl.controller.js
+import asyncHandler from "express-async-handler";
 
 export const removeDCL = async (req, res) => {
   try {
@@ -38,7 +34,6 @@ export const removeDCL = async (req, res) => {
   }
 };
 
-
 export const getRMQueue = async (req, res) => {
   try {
     const { rmId } = req.params;
@@ -55,131 +50,27 @@ export const getRMQueue = async (req, res) => {
   }
 };
 
+// RM GET ALL COMPLETED DCLS
 
-
-export const getRMCompleted = async (req, res) => {
-  try {
-    const { rmId } = req.params;
-    const data = await getRMCompletedDCLs(rmId);
-
-    res.json({
-      success: true,
-      count: data.length,
-      data,
-    });
-  } catch (error) {
-    console.error("Completed load error:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-//Delete uploaded file
-
-// UTIL — generate DCL Number
-// const generateDclNumber = () => {
-//   return "DCL-" + Math.floor(100000 + Math.random() * 900000);
-// };
-
-// ---------------------------------------------
-// CREATE CHECKLIST
-// ---------------------------------------------
-export const createChecklist = async (req, res) => {
-  try {
-    const dclNo = generateDclNumber();
-    const flat = req.body.documents || [];
-
-    // group by category
-    const grouped = flat.reduce((acc, doc) => {
-      let c = acc.find((x) => x.category === doc.category);
-      if (!c) {
-        c = { category: doc.category, docList: [] };
-        acc.push(c);
-      }
-      c.docList.push(doc);
-      return acc;
-    }, []);
-
-    const checklist = await Checklist.create({
-      dclNo,
-
-      customerId: req.body.customerId,
-      customerNumber: req.body.customerNumber,
-      customerName: req.body.customerName,
-
-      title: req.body.title,
-      loanType: req.body.loanType,
-
-      assignedToRM: req.body.assignedToRM,
-      createdBy: req.user?.id || null,
-
-      documents: grouped,
-      status: "co_creator_review"
-    });
-
-    addLog(checklist._id, "Checklist created", req.user?.id);
-
-    res.status(201).json(checklist);
-  } catch (err) {
-    console.error("CREATE CHECKLIST ERROR:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// ---------------------------------------------
-// RM SUBMITS CHECKLIST
-// --------------------------------------------
-
-// export const submitRmChecklist = async (req, res) => {
+// export const getRMCompleted = async (req, res) => {
 //   try {
-//     const { checklistId, documents, rmGeneralComment, rmId } = req.body;
-// //
-//     const checklist = await Checklist.findById(checklistId);
-//     if (!checklist)
-//       return res.status(404).json({ error: "Checklist not found" });
+//     const { rmId } = req.params;
+//     const data = await getRMCompletedDCLs(rmId);
 
-//     // ===============================
-//     // UPDATE NESTED DOCUMENTS
-//     // ===============================
-//     checklist.documents.forEach((cat) => {
-//       cat.docList.forEach((doc) => {
-//         const incoming = documents.find((d) => d._id == doc._id);
-
-//         if (incoming) {
-//           doc.status = incoming.status || doc.status;
-//           doc.comment = incoming.comment || "";
-//           doc.action = incoming.action || "";
-//           doc.fileUrl = incoming.fileUrl || doc.fileUrl;
-//           doc.deferralReason = incoming.deferralReason || doc.deferralReason;
-//           doc.rmStatus = incoming.rmStatus || doc.rmStatus;
-
-//           doc.updatedAt = new Date();
-//         }
-//       });
+//     res.json({
+//       success: true,
+//       count: data.length,
+//       data,
 //     });
-
-//     // ===============================
-//     // ADD RM GENERAL COMMENTS + STATUS
-//     // ===============================
-//     checklist.rmGeneralComment = rmGeneralComment;
-//     checklist.rmReviewedBy = rmId || null;
-//     checklist.status = "sent_to_co";
-
-//     // ===============================
-//     // LOG THE ACTION
-//     // ===============================
-
-//     await checklist.save();
-
-//     res.json("Checklist submitted successfully!");
-//   } catch (err) {
-//     console.error("SUBMIT RM ERROR:", err);
-//     res.status(500).json({ error: err.message });
+//   } catch (error) {
+//     console.error("Completed load error:", error);
+//     res.status(500).json({ message: "Internal server error" });
 //   }
 // };
 
+// RM SUBMISSION TO CO CREATOR – update document statuses
 
-
-export const submitRmChecklist = async (req, res) => {
+export const submitChecklistToCoCreator = async (req, res) => {
   try {
     const { checklistId, documents, rmGeneralComment, rmId } = req.body;
 
@@ -191,9 +82,8 @@ export const submitRmChecklist = async (req, res) => {
     if (!checklist)
       return res.status(404).json({ error: "Checklist not found" });
 
-    // ===============================
     // UPDATE NESTED DOCUMENTS
-    // ===============================
+
     checklist.documents.forEach((cat) => {
       cat.docList.forEach((doc) => {
         const incoming = documents.find((d) => d._id == doc._id);
@@ -215,21 +105,19 @@ export const submitRmChecklist = async (req, res) => {
     // ===============================
     checklist.rmGeneralComment = rmGeneralComment ?? "";
     checklist.rmReviewedBy = rmId || null;
-    checklist.status = "sent_to_co";
+    checklist.status = "co_creator_review";
 
     const updatedChecklist = await checklist.save();
 
     return res.json({
       message: "Checklist submitted successfully!",
-      checklist: updatedChecklist,  // ⭐ Return updated result
+      checklist: updatedChecklist, // ⭐ Return updated result
     });
   } catch (err) {
     console.error("SUBMIT RM ERROR:", err);
     return res.status(500).json({ error: err.message });
   }
 };
-
-
 
 // ---------------------------------------------
 // GET CHECKLIST BY ID
@@ -249,6 +137,7 @@ export const getChecklistById = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 //DELETE UPLOADED FILE
 export const deleteDocumentFile = asyncHandler(async (req, res) => {
   const { checklistId, documentId } = req.params;
@@ -265,17 +154,23 @@ export const deleteDocumentFile = asyncHandler(async (req, res) => {
   res.json({ message: "File deleted successfully" });
 });
 
-//rm Notifications
-export const getNotifications = async (req, res) => {
+// RM NOTIFICATIONS
+export const getRmNotifications = async (req, res) => {
   const { userId } = req.query;
-  const notifications = await Notification.find({ userId }).sort({ createdAt: -1 });
+  const notifications = await Notification.find({ userId }).sort({
+    createdAt: -1,
+  });
   res.json(notifications);
 };
 
 // Mark notification as read
-export const markAsRead = async (req, res) => {
+export const markRmNotificationsAsRead = async (req, res) => {
   const { notificationId } = req.params;
-  const notification = await Notification.findByIdAndUpdate(notificationId, { isRead: true }, { new: true });
+  const notification = await Notification.findByIdAndUpdate(
+    notificationId,
+    { isRead: true },
+    { new: true }
+  );
   res.json(notification);
 };
 
@@ -283,8 +178,11 @@ export const markAsRead = async (req, res) => {
 
 export const getCompletedDclsForRm = async (req, res) => {
   try {
+    const { rmId } = req.params;
+
     const completed = await Checklist.find({
-      status: "Approved",            // only approved checklists
+      status: "Approved",
+      assignedToRM: rmId, // 👈 filter by RM
     }).sort({ updatedAt: -1 });
 
     res.json(completed);
@@ -293,4 +191,3 @@ export const getCompletedDclsForRm = async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 };
-

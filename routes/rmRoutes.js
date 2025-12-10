@@ -1,39 +1,42 @@
-/ routes/dcl.routes.js
 import express from "express";
 import {
-    getRMQueue, getRMCompleted, removeDCL,
-} from "../controllers/checklistController.js";
-import {
-    submitRmChecklist,deleteDocumentFile,
-    deleteDocumentFile
+    getRMQueue, removeDCL,submitChecklistToCoCreator,deleteDocumentFile,
+    getChecklistById,getRmNotifications,
+    markRmNotificationsAsRead,getCompletedDclsForRm
 } from "../controllers/rmController.js";
-import { getNotifications, markAsRead } from "../controllers/notificationController.js";
-import { getCompletedDclsForRm } from "../controllers/rmController.js";
 
 const router = express.Router();
 
 // RM Queue = in progress
 router.get("/:rmId/myqueue", getRMQueue);
 
-//  rm submit checklist
-router.post("/submitRm",  submitRmChecklist);
+//  rm submit checklist to cocreator
+router.post("/submitChecklistToCoCreator",  submitChecklistToCoCreator);
 
 
-// Completed = approved
-router.get("/:rmId/completed", getRMCompleted);
+//Rm get  Completed Dcls = approved
+
+router.get("/completed/rm/:rmId", getCompletedDclsForRm);
+
 
 // DELETE a DCL
 router.delete("/:id", removeDCL);
 
-// delete uploaded file
-router.delete("/", deleteDocumentFile);
+// ✅ Get checklist by ID
+router.get("/:id", getChecklistById);
 
-// getting completed dcls for rm
-router.get("/completed-dcls", getCompletedDclsForRm);
+// ✅ Delete uploaded file for a document inside a checklist
+router.delete("/:checklistId/document/:documentId", deleteDocumentFile);
 
-// getting notifications and marking them as read
-router.get("/", getNotifications);
-router.patch("/:notificationId/read", markAsRead);
+
+/* ----------------------- RM NOTIFICATIONS ROUTES ----------------------- */
+
+// ✅ Get notifications for RM
+router.get("/notifications/rm", getRmNotifications);
+// usage: /api/checklist/notifications/rm?userId=123
+
+// ✅ Mark a notification as read
+router.put("/notifications/rm/:notificationId", markRmNotificationsAsRead);
 
 export default router;
 

@@ -5,36 +5,56 @@ import { uploadSingle } from "../middleware/upload.js";
 
 import {
   createChecklist,
-  getChecklists,
-  getChecklistById,
-  getChecklistByDclNo,
-  getDCLs,
-  updateChecklist,
-  submitToRM,
+  getAllCoCreatorChecklists,
+  getSpecificChecklistsByCreator,
+  getCoCreatorChecklistById,
+  getCoCreatorChecklistByDclNo,
+  getCoCreatorActiveChecklists,
+  updateChecklistByCoCreator,
+  coCreatorSubmitToRM,
   submitToCoChecker,
   coCreatorReview,
   coCheckerApproval,
-  addDocument,
-  updateDocument,
+  coCreatorAddDocument,
+  coCreatorUpdateDocument,
   deleteDocument,
-  uploadDocumentFile,
   updateDocumentAdmin,
+  searchCustomer,
+  uploadDocumentFile,
+  // getChecklistById,
+  // getChecklistByDclNo,
+  // getDCLs,
+  // updateChecklist,
+  // submitToRM,
+  // submitToCoChecker,
+  // coCreatorReview,
+  // coCheckerApproval,
+  // addDocument,
+  // updateDocument,
+  // deleteDocument,
+  // uploadDocumentFile,
+  // updateDocumentAdmin,
 } from "../controllers/cocreatorController.js";
 
 const router = express.Router();
 
 // --- Creation & General Info ---
 router.post("/", protect, authorizeRoles("cocreator"), createChecklist);
-router.get("/", protect, getChecklists);
-router.get("/dcls", protect, getDCLs);
-router.get("/:id", protect, getChecklistById);
-router.get("/dcl/:dclNo", protect, getChecklistByDclNo);
+router.get("/", protect, getAllCoCreatorChecklists);
+// router.get("/dcls", protect, getDCLs);
+router.get("/:id", protect, getCoCreatorChecklistById);
+router.get("/dcl/:dclNo", protect, getCoCreatorChecklistByDclNo);
 router.put(
   "/:id",
   protect,
-  authorizeRoles(["cocreator", "rm", "admin"]),
-  updateChecklist
+  authorizeRoles(["cocreator", "rm", "coChecker"]),
+  updateChecklistByCoCreator
 );
+// Search customers by query string
+// Example request: GET /api/cocreatorChecklist/search/customer?q=12345
+router.get("/search/customer", protect, searchCustomer);
+// SPECIFIC CHECKLIST
+router.get("/creator/:creatorId", getSpecificChecklistsByCreator);
 
 // --- Workflow ---
 router.put("/:id/co-create", protect, coCreatorReview);
@@ -47,8 +67,8 @@ router.put("/update-document", protect, updateDocumentAdmin);
 router.post(
   "/:id/submit-to-rm",
   protect,
-  authorizeRoles(["cocreator", "admin"]),
-  submitToRM
+  authorizeRoles(["cocreator"]),
+  coCreatorSubmitToRM
 );
 router.post(
   "/:id/submit-to-cochecker",
@@ -62,13 +82,13 @@ router.post(
   "/:id/documents",
   protect,
   authorizeRoles(["cocreator", "rm"]),
-  addDocument
+  coCreatorAddDocument
 );
 router.patch(
   "/:id/documents/:docId",
   protect,
-  authorizeRoles(["rm"]),
-  updateDocument
+  authorizeRoles(["cocreator", "rm"]),
+  coCreatorUpdateDocument
 );
 router.delete(
   "/:id/documents/:docId",
@@ -76,6 +96,15 @@ router.delete(
   authorizeRoles(["rm", "cocreator"]),
   deleteDocument
 );
+
+// GET CUSTOMERS
+
+router.get("/search/customer", searchCustomer);
+
+// ------------------------------
+// 🟢 GET ACTIVE CHECKLISTS (Co-Creator)
+// ------------------------------
+router.get("/cocreator/active", getCoCreatorActiveChecklists);
 
 // --- Uploads ---
 router.post(

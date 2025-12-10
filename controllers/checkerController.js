@@ -5,7 +5,7 @@ import Notification from "../models/Notification.js";
 // 1. Active DCLs (CoCreator stage)
 // status: "co_creator_review"
 // -------------------------------------------------
-export const getActiveDCLs = async (req, res) => {
+export const getCheckerActiveDCLs = async (req, res) => {
   try {
     const dcls = await Checklist.find({ status: "co_creator_review" })
       .populate("assignedToRM")
@@ -23,7 +23,7 @@ export const getActiveDCLs = async (req, res) => {
 // 2. My Queue (Checker assigned)
 // status: "in_progress"
 // -------------------------------------------------
-export const getMyQueue = async (req, res) => {
+export const getCheckerMyQueue = async (req, res) => {
   try {
     const { checkerId } = req.params;
     if (!checkerId) return res.status(400).json({ error: "checkerId is required" });
@@ -43,7 +43,7 @@ export const getMyQueue = async (req, res) => {
 // -------------------------------------------------
 // 3. Completed DCLs (Approved)
 // -------------------------------------------------
-export const getCompletedDCLs = async (req, res) => {
+export const getCheckerCompletedDCLs = async (req, res) => {
   try {
     const dcls = await Checklist.find({ status: "approved" })
       .populate("assignedToRM")
@@ -61,7 +61,7 @@ export const getCompletedDCLs = async (req, res) => {
 // -------------------------------------------------
 // 4. Get Single DCL
 // -------------------------------------------------
-export const getDclById = async (req, res) => {
+export const getCheckerDclById = async (req, res) => {
   try {
     const dcl = await Checklist.findById(req.params.id)
       .populate("assignedToRM")
@@ -79,15 +79,15 @@ export const getDclById = async (req, res) => {
 // -------------------------------------------------
 // 5. Update DCL Status (Approve / Reject / Return)
 // -------------------------------------------------
-export const updateDclStatus = async (req, res) => {
+export const updateCheckerDclStatus = async (req, res) => {
   try {
-    const { status, remarks, checkerId } = req.body;
+    const { status, checkerComment, checkerId } = req.body;
 
     const dcl = await Checklist.findById(req.params.id);
     if (!dcl) return res.status(404).json({ error: "DCL not found" });
 
     if (status) dcl.status = status;
-    if (remarks) dcl.remarks = remarks;
+    if (checkerComment) dcl.checkerComment = checkerComment;
 
     if (checkerId) {
       dcl.assignedToChecker = checkerId; // corrected
@@ -106,7 +106,7 @@ export const updateDclStatus = async (req, res) => {
 // 6. Auto-Move My Queue → Completed
 // Excludes approved DCLs
 // -------------------------------------------------
-export const getAutoMovedMyQueue = async (req, res) => {
+export const getAutoMovedCheckerMyQueue = async (req, res) => {
   try {
     const { checkerId } = req.params;
     if (!checkerId) return res.status(400).json({ error: "checkerId is required" });
@@ -151,16 +151,16 @@ export const getCheckerReports = async (req, res) => {
 // -------------------------------------------------
 // 8. Approve DCL + Send Notifications
 // -------------------------------------------------
-export const approveDclWithNotification = async (req, res) => {
+export const approveCheckerDclWithNotification = async (req, res) => {
   try {
-    const { remarks } = req.body;
+    const { checkerComment } = req.body;
     const { id } = req.params;
 
     const dcl = await Checklist.findById(id);
     if (!dcl) return res.status(404).json({ error: "DCL not found" });
 
     dcl.status = "approved";
-    dcl.remarks = remarks || "";
+    dcl.checkerComment = checkerComment || "";
     await dcl.save();
 
     await Notification.create({
@@ -187,7 +187,7 @@ export const approveDclWithNotification = async (req, res) => {
 // -------------------------------------------------
 // 9. Reject DCL + Send Notifications
 // -------------------------------------------------
-export const rejectDclWithNotification = async (req, res) => {
+export const rejectCheckerDclWithNotification = async (req, res) => {
   try {
     const { remarks } = req.body;
     const { id } = req.params;

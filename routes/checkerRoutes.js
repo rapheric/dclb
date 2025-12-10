@@ -1,35 +1,36 @@
 import express from "express";
 import {
-  getActiveDCLs,
-  getMyQueue,
+  getCheckerActiveDCLs,
+  getCheckerMyQueue,
   getCompletedDCLsForChecker, // updated API
-  getDclById,
-  updateDclStatus,
-  getAutoMovedMyQueue,
+  getCheckerDclById,
+  updateCheckerDclStatus,
+  getAutoMovedCheckerMyQueue,
   getCheckerReports,
-  approveDclWithNotification,
-  rejectDclWithNotification,
+  approveCheckerDclWithNotification,
+  rejectCheckerDclWithNotification,
+  // getCompletedDclsForChecker
 } from "../controllers/checkerController.js";
 
 const router = express.Router();
 
 // 1. Active DCLs (CoCreator stage)
-router.get("/active-dcls", getActiveDCLs);
+router.get("/active-dcls", getCheckerActiveDCLs);
 
 // 2. My Queue (Checker assigned)
-router.get("/my-queue/:checkerId", getMyQueue);
+router.get("/my-queue/:checkerId", getCheckerMyQueue);
 
 // 3. Completed DCLs for Checker (Approved)
 router.get("/completed/:checkerId", getCompletedDCLsForChecker); // updated endpoint
 
 // 4. Get Single DCL
-router.get("/dcl/:id", getDclById);
+router.get("/dcl/:id", getCheckerDclById);
 
 // 5. Update DCL Status (old API remains)
-router.put("/dcl/:id", updateDclStatus);
+router.put("/dcl/:id", updateCheckerDclStatus);
 
 // 6. Auto-Move My Queue → Completed
-router.get("/my-queue-auto/:checkerId", getAutoMovedMyQueue);
+router.get("/my-queue-auto/:checkerId", getAutoMovedCheckerMyQueue);
 
 // 7. Reports dashboard metrics
 router.get("/reports/:checkerId", getCheckerReports);
@@ -40,9 +41,9 @@ router.get("/reports/:checkerId", getCheckerReports);
 // -------------------------------------------
 
 // 8. Approve DCL (with notifications)
-router.patch("/approve/:id", approveDclWithNotification);
+router.patch("/approve/:id", approveCheckerDclWithNotification);
 
 // 9. Reject DCL (with notifications)
-router.patch("/reject/:id", rejectDclWithNotification);
+router.patch("/reject/:id", rejectCheckerDclWithNotification);
 
 export default router;
