@@ -19,9 +19,13 @@ export const registerAdmin = async (req, res) => {
 export const login = async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
+  
 
   if (!user) return res.status(404).json({ message: "User not found" });
-  if (!user.active) return res.status(403).json({ message: "Account deactivated" });
+  if (!user.active)
+    return res.status(403).json({ message: "Account deactivated" });
+
+  
 
   const isMatch = await user.matchPassword(password);
   if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });

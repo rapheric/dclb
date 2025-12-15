@@ -9,8 +9,10 @@ import {
   getCheckerReports,
   approveCheckerDclWithNotification,
   rejectCheckerDclWithNotification,
+  updateCheckerStatus
   // getCompletedDclsForChecker
 } from "../controllers/checkerController.js";
+import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -31,6 +33,12 @@ router.put("/dcl/:id", updateCheckerDclStatus);
 
 // 6. Auto-Move My Queue → Completed
 router.get("/my-queue-auto/:checkerId", getAutoMovedCheckerMyQueue);
+
+router.patch(
+  "/update-status",
+  protect,
+  updateCheckerStatus
+);
 
 // 7. Reports dashboard metrics
 router.get("/reports/:checkerId", getCheckerReports);

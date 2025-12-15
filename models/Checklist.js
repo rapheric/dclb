@@ -16,19 +16,22 @@ const DocumentSchema = new mongoose.Schema(
         "waived",
         "deferred",
         "tbo",
-        "Approved",
-        "Incomplete",
-        "Returned by Checker",
+        "approved",
+        "incomplete",
+        "returned_by_Checker",
+        "defferal_requested",
+        "pending_from_customer",
       ],
-      default: "pending",
+      default: "pendingrm",
     },
     checkerComment: String,
-    creatorComment:String,
+    creatorComment: String,
     rmComment: String,
     coCreatorFiles: [{ name: String, url: String }],
     fileUrl: { type: String, default: "" },
     comment: { type: String, default: "" },
-    rmStatus: {type:String , deafult:""},
+    rmStatus: { type: String, default: "" },
+    checkerStatus: { type: String, default: "pending" },
     deferralReason: String,
   },
   { timestamps: true }
@@ -42,6 +45,7 @@ const CHECKLIST_STATUS_ENUM = [
   "Rejected",
   "Active",
   "Completed",
+  "pending",
 ];
 
 const ChecklistSchema = new mongoose.Schema(
@@ -60,12 +64,13 @@ const ChecklistSchema = new mongoose.Schema(
     // Assignments
     assignedToRM: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    assignedToCoChecker: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
     // Main Status
     status: {
       type: String,
       enum: CHECKLIST_STATUS_ENUM,
-      default: "co_creator_review",
+      default: "pending",
     },
 
     // Documents grouped by category

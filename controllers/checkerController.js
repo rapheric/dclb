@@ -26,9 +26,13 @@ export const getCheckerActiveDCLs = async (req, res) => {
 export const getCheckerMyQueue = async (req, res) => {
   try {
     const { checkerId } = req.params;
-    if (!checkerId) return res.status(400).json({ error: "checkerId is required" });
+    if (!checkerId)
+      return res.status(400).json({ error: "checkerId is required" });
 
-    const dcls = await Checklist.find({ assignedToChecker: checkerId, status: "in_progress" })
+    const dcls = await Checklist.find({
+      assignedToChecker: checkerId,
+      status: "in_progress",
+    })
       .populate("assignedToRM")
       .populate("createdBy")
       .sort({ updatedAt: -1 });
@@ -109,11 +113,12 @@ export const updateCheckerDclStatus = async (req, res) => {
 export const getAutoMovedCheckerMyQueue = async (req, res) => {
   try {
     const { checkerId } = req.params;
-    if (!checkerId) return res.status(400).json({ error: "checkerId is required" });
+    if (!checkerId)
+      return res.status(400).json({ error: "checkerId is required" });
 
     const dcls = await Checklist.find({
       assignedToChecker: checkerId,
-      status: { $ne: "approved" }
+      status: { $ne: "approved" },
     })
       .populate("assignedToRM")
       .populate("createdBy")
@@ -133,15 +138,26 @@ export const getAutoMovedCheckerMyQueue = async (req, res) => {
 export const getCheckerReports = async (req, res) => {
   try {
     const { checkerId } = req.params;
-    if (!checkerId) return res.status(400).json({ error: "checkerId is required" });
+    if (!checkerId)
+      return res.status(400).json({ error: "checkerId is required" });
 
     const [myQueueCount, activeDclsCount, completedCount] = await Promise.all([
-      Checklist.countDocuments({ assignedToChecker: checkerId, status: "in_progress" }),
+      Checklist.countDocuments({
+        assignedToChecker: checkerId,
+        status: "in_progress",
+      }),
       Checklist.countDocuments({ status: "co_creator_review" }),
-      Checklist.countDocuments({ assignedToChecker: checkerId, status: "approved" })
+      Checklist.countDocuments({
+        assignedToChecker: checkerId,
+        status: "approved",
+      }),
     ]);
 
-    res.json({ myQueue: myQueueCount, activeDcls: activeDclsCount, completed: completedCount });
+    res.json({
+      myQueue: myQueueCount,
+      activeDcls: activeDclsCount,
+      completed: completedCount,
+    });
   } catch (error) {
     console.error("🔥 Reports API Error:", error);
     res.status(500).json({ error: error.message });
@@ -166,14 +182,14 @@ export const approveCheckerDclWithNotification = async (req, res) => {
     await Notification.create({
       userId: dcl.createdBy,
       title: "DCL Approved",
-      message: `Your DCL (${dcl._id}) has been approved.`
+      message: `Your DCL (${dcl._id}) has been approved.`,
     });
 
     if (dcl.assignedToRM) {
       await Notification.create({
         userId: dcl.assignedToRM,
         title: "DCL Approved",
-        message: `A DCL assigned to you (${dcl._id}) has been approved.`
+        message: `A DCL assigned to you (${dcl._id}) has been approved.`,
       });
     }
 
@@ -202,14 +218,14 @@ export const rejectCheckerDclWithNotification = async (req, res) => {
     await Notification.create({
       userId: dcl.createdBy,
       title: "DCL Rejected",
-      message: `Your DCL (${dcl._id}) was rejected. Reason: ${remarks}`
+      message: `Your DCL (${dcl._id}) was rejected. Reason: ${remarks}`,
     });
 
     if (dcl.assignedToRM) {
       await Notification.create({
         userId: dcl.assignedToRM,
         title: "DCL Rejected",
-        message: `A DCL assigned to you (${dcl._id}) was rejected.`
+        message: `A DCL assigned to you (${dcl._id}) was rejected.`,
       });
     }
 
@@ -227,9 +243,13 @@ export const rejectCheckerDclWithNotification = async (req, res) => {
 export const getCompletedDCLsForChecker = async (req, res) => {
   try {
     const { checkerId } = req.params;
-    if (!checkerId) return res.status(400).json({ error: "checkerId is required" });
+    if (!checkerId)
+      return res.status(400).json({ error: "checkerId is required" });
 
-    const dcls = await Checklist.find({ assignedToChecker: checkerId, status: "approved" })
+    const dcls = await Checklist.find({
+      assignedToChecker: checkerId,
+      status: "approved",
+    })
       .populate("assignedToRM")
       .populate("createdBy")
       .populate("assignedToChecker")
@@ -242,3 +262,65 @@ export const getCompletedDCLsForChecker = async (req, res) => {
   }
 };
 
+export const updateCheckerStatus = async (req, res) => {
+  try {
+    // 1. Get the ID from URL parameters and the action from the body
+
+    const { action, id } = req.body;
+
+    console.log(action, id);
+
+    if (!id || !action) {
+      return res.status(400).json({
+        error: "Checklist ID and action are required",
+      });
+    }
+
+    // 2. Map the frontend action string to a database status value
+    let newStatus;
+    if (action === "approved") {
+      newStatus = "Approved"; // Match a value in CHECKLIST_STATUS_ENUM
+    } else if (action === "co_creator_review") {
+      newStatus = "co_creator_review"; // Send back to the creator
+    } else {
+      return res.status(400).json({
+        error: `Invalid action: ${action}`,
+      });
+    }
+
+    // 3. Retrieve the checklist using the ID
+    const checklist = await Checklist.findById(id);
+
+    if (!checklist) {
+      return res.status(404).json({
+        error: "Checklist not found",
+      });
+    }
+
+    // 4. Patch the checklist status and update metadata
+    checklist.status = newStatus;
+
+    // Update metadata using the fields added in the previous step
+    // checklist.checkerReviewedBy = req.user?._id;
+    // checklist.checkerReviewedAt = new Date();
+
+    // Log the action
+    checklist.logs.push({
+      message: `Checklist status changed to ${newStatus} by Co-Checker`,
+      userId: req.user?._id,
+      timestamp: new Date(),
+    });
+
+    await checklist.save();
+
+    res.status(200).json({
+      message: `Checklist successfully set to status: ${newStatus}`,
+      checklist,
+    });
+  } catch (error) {
+    console.error("Checker final action error:", error);
+    res.status(500).json({
+      error: "Failed to process checker action",
+    });
+  }
+};

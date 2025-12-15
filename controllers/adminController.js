@@ -91,6 +91,7 @@ export const createUser = async (req, res) => {
       }
     }
 
+    
     // Create the user
     const user = await User.create({ name, email, password, role, rmId, customerNumber });
     res.status(201).json(user);

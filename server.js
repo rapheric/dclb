@@ -19,6 +19,9 @@ app.use(
 );
 
 app.use(express.json());
+// app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
@@ -31,6 +34,8 @@ app.use("/api/user-logs", logRoutes);
 app.use("/api/checkerChecklist", checkerRoutes);
 app.use("/api/rmChecklist", rmRoutes);
 app.use("/api/cocreatorChecklist", coCreatorRoutes);
+
+
 
 // RM routes
 app.use("/api/rms", userRoutes);

@@ -21,26 +21,17 @@ import {
   updateDocumentAdmin,
   searchCustomer,
   uploadDocumentFile,
-  // getChecklistById,
-  // getChecklistByDclNo,
-  // getDCLs,
-  // updateChecklist,
-  // submitToRM,
-  // submitToCoChecker,
-  // coCreatorReview,
-  // coCheckerApproval,
-  // addDocument,
-  // updateDocument,
-  // deleteDocument,
-  // uploadDocumentFile,
-  // updateDocumentAdmin,
+  updateCoCreatorChecklistStatus,
+  getChecklists,
+  updateChecklistStatus,
+  // import { getChecklists } from "../controllers/checklistController.js";
 } from "../controllers/cocreatorController.js";
 
 const router = express.Router();
 
 // --- Creation & General Info ---
 router.post("/", protect, authorizeRoles("cocreator"), createChecklist);
-router.get("/", protect, getAllCoCreatorChecklists);
+router.get("/", getAllCoCreatorChecklists);
 // router.get("/dcls", protect, getDCLs);
 router.get("/:id", protect, getCoCreatorChecklistById);
 router.get("/dcl/:dclNo", protect, getCoCreatorChecklistByDclNo);
@@ -50,6 +41,9 @@ router.put(
   authorizeRoles(["cocreator", "rm", "coChecker"]),
   updateChecklistByCoCreator
 );
+
+// Get all checklists
+router.get("/", getChecklists);
 // Search customers by query string
 // Example request: GET /api/cocreatorChecklist/search/customer?q=12345
 router.get("/search/customer", protect, searchCustomer);
@@ -63,18 +57,29 @@ router.put("/:id/co-check", protect, coCheckerApproval);
 // --- Admin Document Override ---
 router.put("/update-document", protect, updateDocumentAdmin);
 
+/**
+ * RM → Submit checklist to Co-Checker
+ */
+router.patch(
+  "/update-status",
+  protect, // optional but recommended
+  updateChecklistStatus
+);
+
 // --- Submissions ---
 router.post(
   "/:id/submit-to-rm",
   protect,
-  authorizeRoles(["cocreator"]),
+  authorizeRoles("cocreator"),
   coCreatorSubmitToRM
 );
-router.post(
-  "/:id/submit-to-cochecker",
+router.post("/:id/submit-to-cochecker", protect, submitToCoChecker);
+
+// PATCH /api/cocreatorChecklist/:checklistId/checklist-status
+router.patch(
+  "/:checklistId/checklist-status",
   protect,
-  authorizeRoles(["cocreator"]),
-  submitToCoChecker
+  updateCoCreatorChecklistStatus
 );
 
 // --- Document Handling ---
