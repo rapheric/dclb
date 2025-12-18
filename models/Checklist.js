@@ -42,9 +42,9 @@ const CHECKLIST_STATUS_ENUM = [
   "rm_review",
   "co_checker_review",
   "Approved",
-  "Rejected",
-  "Active",
-  "Completed",
+  "rejected",
+  "active",
+  "completed",
   "pending",
 ];
 

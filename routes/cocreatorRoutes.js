@@ -24,8 +24,14 @@ import {
   updateCoCreatorChecklistStatus,
   getChecklists,
   updateChecklistStatus,
+  getChecklistComments,
+  uploadSupportingDocs,
+  downloadChecklist
   // import { getChecklists } from "../controllers/checklistController.js";
 } from "../controllers/cocreatorController.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 const router = express.Router();
 
@@ -41,6 +47,9 @@ router.put(
   authorizeRoles(["cocreator", "rm", "coChecker"]),
   updateChecklistByCoCreator
 );
+
+// Route: GET /api/checklists/:checklistId/comments
+router.get('/:checklistId/comments', protect, getChecklistComments);
 
 // Get all checklists
 router.get("/", getChecklists);
@@ -119,5 +128,27 @@ router.post(
   uploadSingle("file"),
   uploadDocumentFile
 );
+
+// upload amd download of documents
+
+
+// Multer storage config
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join("uploads", req.params.id);
+    fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+const upload = multer({ storage });
+
+// Upload endpoint
+router.post("/:id/upload", upload.array("files"), uploadSupportingDocs);
+
+// Download endpoint
+router.get("/:id/download", downloadChecklist);
 
 export default router;

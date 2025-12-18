@@ -71,6 +71,88 @@ export const getMyQueue = async (req, res) => {
 
 // import Checklist from "../models/Checklist.js";
 
+// export const rmSubmitChecklistToCoCreator = async (req, res) => {
+//   try {
+//     const { checklistId, documents, rmGeneralComment } = req.body;
+
+//     if (!checklistId) {
+//       return res.status(400).json({ error: "Checklist ID is required" });
+//     }
+
+//     const checklist = await Checklist.findById(checklistId);
+//     if (!checklist) {
+//       return res.status(404).json({ error: "Checklist not found" });
+//     }
+
+//     /* ============================
+//        1. Update documents
+//     ============================ */
+//     if (Array.isArray(documents)) {
+//       documents.forEach((updatedDoc) => {
+//         const category = checklist.documents.find(
+//           (c) => c.category === updatedDoc.category
+//         );
+//         if (!category) return;
+
+//         const doc = category.docList.id(updatedDoc._id);
+//         if (!doc) return;
+
+//         if (updatedDoc.status === "pendingrm") {
+//           // If the frontend status is 'pendingrm', change it to 'submitted_for_review'
+//           doc.status = "submitted";
+//         } else if (updatedDoc.status !== undefined) {
+//           // Otherwise, if a status is provided, use it directly
+//           doc.status = updatedDoc.status;
+//         }
+
+//         doc.action = updatedDoc.action;
+//         doc.comment = updatedDoc.comment;
+//         doc.fileUrl = updatedDoc.fileUrl;
+//         doc.deferralReason = updatedDoc.deferralReason;
+//         doc.deferralNumber = updatedDoc.deferralNumber;
+//         doc.rmStatus = updatedDoc.rmStatus;
+//       });
+//     }
+
+//     /* ============================
+//        2. RM general comment log
+//     ============================ */
+//     if (rmGeneralComment) {
+//       checklist.logs.push({
+//         message: `RM Comment: ${rmGeneralComment}`,
+//         userId: req.user.id,
+//         role: "RM",
+//         timestamp: new Date(),
+//       });
+//     }
+
+//     /* ============================
+//        3. Move checklist to Co-Creator
+//     ============================ */
+//     checklist.status = "co_creator_review";
+//     checklist.submittedBackToCoCreator = true;
+
+//     checklist.logs.push({
+//       message: "Checklist submitted back to Co-Creator by RM",
+//       userId: req.user.id,
+//       role: "RM",
+//       timestamp: new Date(),
+//     });
+
+//     await checklist.save();
+
+//     res.json({
+//       message: "Checklist successfully submitted to Co-Creator",
+//       checklist,
+//     });
+//   } catch (err) {
+//     console.error("RM SUBMIT TO CO-CREATOR ERROR:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+// import Checklist from "../models/Checklist.js"; // adjust import path
+
 export const rmSubmitChecklistToCoCreator = async (req, res) => {
   try {
     const { checklistId, documents, rmGeneralComment } = req.body;
@@ -84,9 +166,10 @@ export const rmSubmitChecklistToCoCreator = async (req, res) => {
       return res.status(404).json({ error: "Checklist not found" });
     }
 
-    /* ============================
-       1. Update documents
-    ============================ */
+    /* ===========================
+       1. Update documents (RM only)
+       ✅ Do NOT overwrite CO-Creator status
+    =========================== */
     if (Array.isArray(documents)) {
       documents.forEach((updatedDoc) => {
         const category = checklist.documents.find(
@@ -97,26 +180,22 @@ export const rmSubmitChecklistToCoCreator = async (req, res) => {
         const doc = category.docList.id(updatedDoc._id);
         if (!doc) return;
 
-        if (updatedDoc.status === "pendingrm") {
-         // If the frontend status is 'pendingrm', change it to 'submitted_for_review'
-         doc.status = "submitted_for_review";
-       } else if (updatedDoc.status !== undefined) {
-         // Otherwise, if a status is provided, use it directly
-         doc.status = updatedDoc.status;
-       }
-       
-        doc.action = updatedDoc.action;
-        doc.comment = updatedDoc.comment;
-        doc.fileUrl = updatedDoc.fileUrl;
-        doc.deferralReason = updatedDoc.deferralReason;
-        doc.deferralNumber = updatedDoc.deferralNumber;
-        doc.rmStatus = updatedDoc.rmStatus;
+        // Only RM fields
+        if (updatedDoc.action !== undefined) doc.action = updatedDoc.action;
+        if (updatedDoc.rmStatus !== undefined)
+          doc.rmStatus = updatedDoc.rmStatus;
+        if (updatedDoc.comment !== undefined) doc.comment = updatedDoc.comment;
+        if (updatedDoc.fileUrl !== undefined) doc.fileUrl = updatedDoc.fileUrl;
+        if (updatedDoc.deferralReason !== undefined)
+          doc.deferralReason = updatedDoc.deferralReason;
+        if (updatedDoc.deferralNumber !== undefined)
+          doc.deferralNumber = updatedDoc.deferralNumber;
       });
     }
 
-    /* ============================
+    /* ===========================
        2. RM general comment log
-    ============================ */
+    =========================== */
     if (rmGeneralComment) {
       checklist.logs.push({
         message: `RM Comment: ${rmGeneralComment}`,
@@ -126,9 +205,9 @@ export const rmSubmitChecklistToCoCreator = async (req, res) => {
       });
     }
 
-    /* ============================
+    /* ===========================
        3. Move checklist to Co-Creator
-    ============================ */
+    =========================== */
     checklist.status = "co_creator_review";
     checklist.submittedBackToCoCreator = true;
 

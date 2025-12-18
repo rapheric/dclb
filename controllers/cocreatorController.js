@@ -3,46 +3,11 @@ import { addLog, generateDclNumber } from "../helpers/checklistHelpers.js";
 import { findLeastBusyCheckerId } from "../utils/findLeastBusyChecker.js";
 import fs from "fs";
 import path from "path";
+import asyncHandler from 'express-async-handler';
+import archiver from "archiver";
+// import Checklist from "../models/Checklist.js";
 
-//  CREATE CHECKLIST
-
-// export const createChecklist = async (req, res) => {
-//   try {
-//     const {
-//       customerId,
-//       customerNumber,
-//       customerName,
-//       loanType,
-//       assignedToRM,
-//       documents,
-//     } = req.body;
-
-//     // FIX: Await the DCL generator
-//     const dclNo = await generateDclNumber();
-
-//     const checklist = await Checklist.create({
-//       dclNo,
-//       customerId,
-//       customerNumber,
-//       customerName,
-//       loanType,
-//       assignedToRM,
-//       createdBy: req.user._id,
-//       documents,
-//     });
-
-//     res.status(201).json({
-//       message: "Checklist created successfully",
-//       checklist,
-//     });
-//   } catch (err) {
-//     console.log("CREATE CHECKLIST ERROR:", err);
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// Assuming you have Multer setup to handle multiple files
-// with field names like 'Contract Documents', 'KYC Documents', etc.
+// create a checklist
 export const createChecklist = async (req, res) => {
   try {
     const {
@@ -104,6 +69,44 @@ export const createChecklist = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// comments trail
+
+// / @desc   Get the comment/activity log trail for a specific checklist
+// @route GET /api/checklists/:checklistId/comments
+// @access Private (e.g., Creator, RM, Co-Checker)
+export const getChecklistComments = asyncHandler(async (req, res) => {
+  const { checklistId } = req.params;
+  const userId = req.user._id.toString(); // 1. Authorization and Data Fetch // We fetch the checklist and populate the user details within the logs.
+
+  const checklist = await Checklist.findById(checklistId)
+    .populate("createdBy", "name role")
+    .populate("assignedToRM", "name role")
+    .populate("assignedToCoChecker", "name role")
+    .populate("logs.userId", "name role"); // ⭐ Populate the User details within the logs
+
+  if (!checklist) {
+    res.status(404);
+    throw new Error("Checklist not found");
+  } // 2. Authorization Check: Verify user role against the checklist assignments.
+
+  const isAuthorized =
+    checklist.createdBy._id.toString() === userId ||
+    checklist.assignedToRM._id.toString() === userId ||
+    (checklist.assignedToCoChecker &&
+      checklist.assignedToCoChecker._id.toString() === userId);
+
+  if (!isAuthorized) {
+    res.status(403);
+    throw new Error("Not authorized to view this comment trail.");
+  } // 3. Format and Send the Logs // We can reformat the logs slightly to match the expected structure if needed, // but simply sending the populated logs is often sufficient. // Optional: Sort the logs by timestamp descending (newest first)
+
+  const sortedLogs = [...checklist.logs].sort(
+    (a, b) => b.timestamp - a.timestamp
+  );
+
+  res.status(200).json(sortedLogs);
+});
 
 // search  a customer
 export const searchCustomer = async (req, res) => {
@@ -188,7 +191,8 @@ export const updateChecklistStatus = async (req, res) => {
         }
 
         // 3. Update the document status to "submitted" (as per previous logic)
-        const newStatus = "submitted";
+        // const newStatus = "submitted";
+        const newStatus = doc.action || doc.status;
         const updatedDoc = {
           ...doc,
           status: newStatus,
@@ -613,34 +617,35 @@ export const coCreatorSubmitToRM = async (req, res) => {
 //   }
 // };
 
-export const submitToCoChecker = async (req, res) => {
-  const { documents, supportingDocs, coGeneralComment } = req.body || {};
+// export const submitToCoChecker = async (req, res) => {
+//   const { documents, supportingDocs, coGeneralComment } = req.body || {};
 
-  try {
-    const checklist = await Checklist.findById(req.params.id);
-    if (!checklist)
-      return res.status(404).json({ message: "Checklist not found" });
+//   try {
+//     const checklist = await Checklist.findById(req.params.id);
+//     if (!checklist)
+//       return res.status(404).json({ message: "Checklist not found" });
 
-    // Example update
-    checklist.documents = documents;
-    checklist.supportingDocs = supportingDocs;
-    checklist.creatorComment = creatorComment;
-    checklist.status = "Submitted";
+//     // Example update
+//     checklist.documents = documents;
+//     checklist.supportingDocs = supportingDocs;
+//     checklist.creatorComment = creatorComment;
+//     checklist.status = "Submitted";
 
-    await checklist.save();
+//     await checklist.save();
 
-    res
-      .status(200)
-      .json({ message: "Checklist submitted to Co-Checker", checklist });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
+//     res
+//       .status(200)
+//       .json({ message: "Checklist submitted to Co-Checker", checklist });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: "Server Error" });
+//   }
+// };
 
-/* ---------------------------
-   CO-CREATOR REVIEW
---------------------------- */
+
+
+  //  CO-CREATOR REVIEW
+
 export const coCreatorReview = async (req, res) => {
   try {
     const { checklistId } = req.params;
@@ -668,9 +673,158 @@ export const coCreatorReview = async (req, res) => {
   }
 };
 
-/* ---------------------------
-   CO-CHECKER APPROVAL
---------------------------- */
+
+// upload and download 
+
+
+
+// ================================
+// Upload Additional Files
+// ================================
+export const uploadSupportingDocs = async (req, res) => {
+  try {
+    const checklist = await Checklist.findById(req.params.id);
+    if (!checklist) return res.status(404).json({ message: "Checklist not found" });
+
+    const uploadedFiles = req.files.map((file) => ({
+      fileName: file.originalname,
+      fileUrl: `/uploads/${req.params.id}/${file.filename}`,
+      uploadedAt: new Date(),
+      uploadedBy: req.user.id,
+    }));
+
+    checklist.supportingDocs = checklist.supportingDocs
+      ? checklist.supportingDocs.concat(uploadedFiles)
+      : uploadedFiles;
+
+    await checklist.save();
+
+    res.status(200).json({
+      message: "Files uploaded successfully",
+      files: uploadedFiles,
+      checklist,
+    });
+  } catch (err) {
+    console.error("Upload Error:", err);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// ================================
+// Download Checklist + Supporting Docs as ZIP
+// ================================
+export const downloadChecklist = async (req, res) => {
+  try {
+    const checklist = await Checklist.findById(req.params.id);
+    if (!checklist) return res.status(404).json({ message: "Checklist not found" });
+
+    const archive = archiver("zip", { zlib: { level: 9 } });
+
+    res.attachment(`Checklist-${checklist.dclNo || checklist._id}.zip`);
+    archive.pipe(res);
+
+    // Add main checklist documents
+    checklist.documents.forEach((category) => {
+      category.docList.forEach((doc) => {
+        if (doc.fileUrl) {
+          const filePath = path.join(".", doc.fileUrl);
+          if (fs.existsSync(filePath)) {
+            archive.file(filePath, { name: `Documents/${category.category}/${doc.name}` });
+          }
+        }
+      });
+    });
+
+    // Add supporting docs
+    if (checklist.supportingDocs && checklist.supportingDocs.length > 0) {
+      checklist.supportingDocs.forEach((doc) => {
+        const filePath = path.join(".", doc.fileUrl);
+        if (fs.existsSync(filePath)) {
+          archive.file(filePath, { name: `SupportingDocs/${doc.fileName}` });
+        }
+      });
+    }
+
+    await archive.finalize();
+  } catch (err) {
+    console.error("Download Error:", err);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+
+
+
+export const submitToCoChecker = async (req, res) => {
+  const { documents, supportingDocs, coGeneralComment } = req.body || {};
+
+  try {
+    const checklist = await Checklist.findById(req.params.id);
+    if (!checklist)
+      return res.status(404).json({ message: "Checklist not found" });
+
+    // 1️⃣ Validate if all docs are allowed to be submitted
+    const hasPendingRM = checklist.documents.some((cat) =>
+      cat.docList.some((doc) => doc.status === "pendingrm")
+    );
+    if (hasPendingRM) {
+      return res.status(400).json({
+        message:
+          "Checklist contains documents still pending RM. Cannot submit to Co-Checker.",
+      });
+    }
+
+    // 2️⃣ Update only changed fields from Co-Checker
+    if (Array.isArray(documents)) {
+      documents.forEach((updatedDoc) => {
+        const category = checklist.documents.find(
+          (c) => c.category === updatedDoc.category
+        );
+        if (!category) return;
+
+        const doc = category.docList.id(updatedDoc._id);
+        if (!doc) return;
+
+        // Only update what is explicitly changed, keep original status
+        if (updatedDoc.action !== undefined) doc.action = updatedDoc.action;
+        if (updatedDoc.comment !== undefined) doc.comment = updatedDoc.comment;
+        if (updatedDoc.fileUrl !== undefined) doc.fileUrl = updatedDoc.fileUrl;
+        if (updatedDoc.deferralReason !== undefined)
+          doc.deferralReason = updatedDoc.deferralReason;
+      });
+    }
+
+    // 3️⃣ Update supporting docs if any
+    if (supportingDocs !== undefined) {
+      checklist.supportingDocs = supportingDocs;
+    }
+
+    // 4️⃣ Log Co-Checker general comment
+    if (coGeneralComment) {
+      checklist.logs.push({
+        message: `Co-Checker Comment: ${coGeneralComment}`,
+        userId: req.user.id,
+        role: "Co-Checker",
+        timestamp: new Date(),
+      });
+    }
+
+    // 5️⃣ Set checklist status to indicate Co-Checker reviewed
+    // ✅ Important: Do NOT overwrite individual document statuses
+    checklist.status = "co_checker_reviewed";
+
+    await checklist.save();
+
+    res
+      .status(200)
+      .json({ message: "Checklist submitted to Co-Checker", checklist });
+  } catch (err) {
+    console.error("Submit to Co-Checker Error:", err);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+  //  CO-CHECKER APPROVAL
 export const coCheckerApproval = async (req, res) => {
   try {
     const { checklistId } = req.params;
