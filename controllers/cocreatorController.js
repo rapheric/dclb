@@ -3,7 +3,8 @@ import { addLog, generateDclNumber } from "../helpers/checklistHelpers.js";
 import { findLeastBusyCheckerId } from "../utils/findLeastBusyChecker.js";
 import fs from "fs";
 import path from "path";
-import asyncHandler from 'express-async-handler';
+import asyncHandler from "express-async-handler";
+
 import archiver from "archiver";
 // import Checklist from "../models/Checklist.js";
 
@@ -144,128 +145,236 @@ export const getChecklists = async (req, res) => {
  * Co creator submits checklist to rm (update status & documents)
  * Uses dclNo (NOT _id)
  */
+// export const updateChecklistStatus = async (req, res) => {
+//   try {
+//     const {
+//       dclNo,
+//       documents,
+//       status,
+//       submittedToCoChecker,
+//       assignedToCoChecker, // Keep this for potential manual override
+//       finalComment,
+//       attachments,
+//     } = req.body;
+
+//     if (!dclNo) {
+//       return res.status(400).json({
+//         error: "DCL No is required",
+//       });
+//     }
+
+//     const checklist = await Checklist.findOne({
+//       dclNo,
+//     });
+
+//     if (!checklist) {
+//       return res.status(404).json({
+//         error: "Checklist not found",
+//       });
+//     }
+
+//     /* ================= DOCUMENT UPDATE: RE-GROUPING ================= */
+//     if (documents && Array.isArray(documents)) {
+//       // ⭐ CORE FIX: Convert the flat document list into the nested category structure.
+//       const processedDocuments = documents.reduce((acc, doc) => {
+//         const categoryName = doc.category;
+
+//         // 1. Find the existing category object in the accumulator array
+//         let categoryObj = acc.find((c) => c.category === categoryName);
+
+//         // 2. If the category doesn't exist, create it
+//         if (!categoryObj) {
+//           categoryObj = {
+//             category: categoryName,
+//             docList: [],
+//           };
+//           acc.push(categoryObj);
+//         }
+
+//         // 3. Update the document status to "submitted" (as per previous logic)
+//         // const newStatus = "submitted";
+//         const newStatus = doc.action || doc.status;
+//         const updatedDoc = {
+//           ...doc,
+//           status: newStatus,
+//           // Ensure the _id is kept for existing documents
+//           _id: doc._id || new mongoose.Types.ObjectId(),
+//         };
+
+//         // 4. Add the updated document to the category's docList
+//         categoryObj.docList.push(updatedDoc);
+
+//         return acc;
+//       }, []); // Initialize accumulator as an empty array []
+
+//       // Update the checklist documents with the correctly structured array
+//       checklist.documents = processedDocuments;
+
+//       // Required since you are replacing the whole nested array
+//       checklist.markModified("documents");
+//     }
+//     /* ================= STATUS UPDATE ================= */
+//     // 1. Set the primary status
+//     const newStatus = "co_checker_review";
+//     checklist.status = newStatus;
+
+//     // 2. ⭐ WORKLOAD ASSIGNMENT LOGIC ⭐
+//     if (newStatus === "co_checker_review") {
+//       // If the client provided a specific checker ID, use it (manual override).
+//       if (assignedToCoChecker) {
+//         checklist.assignedToCoChecker = assignedToCoChecker;
+//       } else {
+//         // Otherwise, auto-assign to the least busy checker.
+//         const leastBusyCheckerId = await findLeastBusyCheckerId();
+
+//         if (leastBusyCheckerId) {
+//           checklist.assignedToCoChecker = leastBusyCheckerId;
+//         } else {
+//           // Handle case where no active checkers are found (e.g., log a warning)
+//           console.warn(
+//             `[Assignment] No active Co-Checkers found for checklist ${dclNo}.`
+//           );
+//           // You might choose to set assignedToCoChecker to null or leave the status pending assignment
+//           // For now, we proceed, but the checklist will be unassigned.
+//         }
+//       }
+
+//       // Mark submission status
+//       checklist.submittedToCoChecker = submittedToCoChecker ?? true;
+
+//       // OPTIONAL: Add a log entry for the assignment
+//       if (checklist.assignedToCoChecker) {
+//         checklist.logs.push({
+//           message: `Assigned to Co-Checker ${checklist.assignedToCoChecker}`,
+//           userId: req.user?._id,
+//           timestamp: new Date(),
+//         });
+//       }
+//     } else {
+//       // If the status is NOT co_checker_review, just use the provided values
+//       // Note: Resetting these to null might be appropriate depending on the workflow change.
+//       checklist.submittedToCoChecker = submittedToCoChecker ?? false;
+//       checklist.assignedToCoChecker = assignedToCoChecker || null;
+//     }
+
+//     // 3. Update comments and attachments
+//     checklist.finalComment = finalComment || "";
+//     checklist.attachments = attachments || [];
+
+//     checklist.lastUpdatedBy = req.user?._id; // if auth middleware exists
+
+//     await checklist.save();
+
+//     res.status(200).json({
+//       message: "Checklist successfully submitted to Co-Checker",
+//       checklist,
+//     });
+//   } catch (error) {
+//     console.error("Update checklist status error:", error);
+//     res.status(500).json({
+//       error: "Failed to update checklist status",
+//     });
+//   }
+// };
+
 export const updateChecklistStatus = async (req, res) => {
   try {
     const {
       dclNo,
       documents,
-      status,
       submittedToCoChecker,
-      assignedToCoChecker, // Keep this for potential manual override
+      assignedToCoChecker,
       finalComment,
       attachments,
     } = req.body;
 
     if (!dclNo) {
-      return res.status(400).json({
-        error: "DCL No is required",
-      });
+      return res.status(400).json({ error: "DCL No is required" });
     }
 
-    const checklist = await Checklist.findOne({
-      dclNo,
-    });
+    const checklist = await Checklist.findOne({ dclNo });
 
     if (!checklist) {
-      return res.status(404).json({
-        error: "Checklist not found",
-      });
+      return res.status(404).json({ error: "Checklist not found" });
     }
 
-    /* ================= DOCUMENT UPDATE: RE-GROUPING ================= */
-    if (documents && Array.isArray(documents)) {
-      // ⭐ CORE FIX: Convert the flat document list into the nested category structure.
+    /* ============================================================
+       DOCUMENT UPDATE — PRESERVE CO-CREATOR STATUSES
+    ============================================================ */
+    if (Array.isArray(documents)) {
+      // Flatten existing documents for quick lookup
+      const existingDocsMap = new Map();
+
+      checklist.documents?.forEach((cat) => {
+        cat.docList.forEach((doc) => {
+          existingDocsMap.set(doc._id.toString(), doc);
+        });
+      });
+
       const processedDocuments = documents.reduce((acc, doc) => {
         const categoryName = doc.category;
 
-        // 1. Find the existing category object in the accumulator array
         let categoryObj = acc.find((c) => c.category === categoryName);
-
-        // 2. If the category doesn't exist, create it
         if (!categoryObj) {
-          categoryObj = {
-            category: categoryName,
-            docList: [],
-          };
+          categoryObj = { category: categoryName, docList: [] };
           acc.push(categoryObj);
         }
 
-        // 3. Update the document status to "submitted" (as per previous logic)
-        // const newStatus = "submitted";
-        const newStatus = doc.action || doc.status;
-        const updatedDoc = {
-          ...doc,
-          status: newStatus,
-          // Ensure the _id is kept for existing documents
-          _id: doc._id || new mongoose.Types.ObjectId(),
-        };
+        const existingDoc = doc._id
+          ? existingDocsMap.get(doc._id.toString())
+          : null;
 
-        // 4. Add the updated document to the category's docList
-        categoryObj.docList.push(updatedDoc);
+        categoryObj.docList.push({
+          ...existingDoc,
+          ...doc,
+          _id: doc._id || new mongoose.Types.ObjectId(),
+
+          // ⭐ CRITICAL FIX
+          status: doc.status ?? existingDoc?.status ?? "pending",
+        });
 
         return acc;
-      }, []); // Initialize accumulator as an empty array []
+      }, []);
 
-      // Update the checklist documents with the correctly structured array
       checklist.documents = processedDocuments;
-
-      // Required since you are replacing the whole nested array
       checklist.markModified("documents");
     }
-    /* ================= STATUS UPDATE ================= */
-    // 1. Set the primary status
-    const newStatus = "co_checker_review";
-    checklist.status = newStatus;
 
-    // 2. ⭐ WORKLOAD ASSIGNMENT LOGIC ⭐
-    if (newStatus === "co_checker_review") {
-      // If the client provided a specific checker ID, use it (manual override).
-      if (assignedToCoChecker) {
-        checklist.assignedToCoChecker = assignedToCoChecker;
-      } else {
-        // Otherwise, auto-assign to the least busy checker.
-        const leastBusyCheckerId = await findLeastBusyCheckerId();
+    /* ============================================================
+       STATUS → SUBMIT TO CO-CHECKER
+    ============================================================ */
+    checklist.status = "co_checker_review";
 
-        if (leastBusyCheckerId) {
-          checklist.assignedToCoChecker = leastBusyCheckerId;
-        } else {
-          // Handle case where no active checkers are found (e.g., log a warning)
-          console.warn(
-            `[Assignment] No active Co-Checkers found for checklist ${dclNo}.`
-          );
-          // You might choose to set assignedToCoChecker to null or leave the status pending assignment
-          // For now, we proceed, but the checklist will be unassigned.
-        }
-      }
-
-      // Mark submission status
-      checklist.submittedToCoChecker = submittedToCoChecker ?? true;
-
-      // OPTIONAL: Add a log entry for the assignment
-      if (checklist.assignedToCoChecker) {
-        checklist.logs.push({
-          message: `Assigned to Co-Checker ${checklist.assignedToCoChecker}`,
-          userId: req.user?._id,
-          timestamp: new Date(),
-        });
-      }
+    if (assignedToCoChecker) {
+      checklist.assignedToCoChecker = assignedToCoChecker;
     } else {
-      // If the status is NOT co_checker_review, just use the provided values
-      // Note: Resetting these to null might be appropriate depending on the workflow change.
-      checklist.submittedToCoChecker = submittedToCoChecker ?? false;
-      checklist.assignedToCoChecker = assignedToCoChecker || null;
+      const leastBusyCheckerId = await findLeastBusyCheckerId();
+      if (leastBusyCheckerId) {
+        checklist.assignedToCoChecker = leastBusyCheckerId;
+      }
     }
 
-    // 3. Update comments and attachments
+    checklist.submittedToCoChecker = submittedToCoChecker ?? true;
+
+    /* ============================================================
+       COMMENTS / ATTACHMENTS / AUDIT
+    ============================================================ */
     checklist.finalComment = finalComment || "";
     checklist.attachments = attachments || [];
+    checklist.lastUpdatedBy = req.user?._id;
 
-    checklist.lastUpdatedBy = req.user?._id; // if auth middleware exists
+    if (checklist.assignedToCoChecker) {
+      checklist.logs.push({
+        message: `Submitted to Co-Checker`,
+        userId: req.user?._id,
+        timestamp: new Date(),
+      });
+    }
 
     await checklist.save();
 
     res.status(200).json({
-      message: "Checklist successfully submitted to Co-Checker",
+      message: "Checklist submitted to Co-Checker successfully",
       checklist,
     });
   } catch (error) {
@@ -642,9 +751,7 @@ export const coCreatorSubmitToRM = async (req, res) => {
 //   }
 // };
 
-
-
-  //  CO-CREATOR REVIEW
+//  CO-CREATOR REVIEW
 
 export const coCreatorReview = async (req, res) => {
   try {
@@ -673,10 +780,7 @@ export const coCreatorReview = async (req, res) => {
   }
 };
 
-
-// upload and download 
-
-
+// upload and download
 
 // ================================
 // Upload Additional Files
@@ -684,7 +788,8 @@ export const coCreatorReview = async (req, res) => {
 export const uploadSupportingDocs = async (req, res) => {
   try {
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ message: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ message: "Checklist not found" });
 
     const uploadedFiles = req.files.map((file) => ({
       fileName: file.originalname,
@@ -716,7 +821,8 @@ export const uploadSupportingDocs = async (req, res) => {
 export const downloadChecklist = async (req, res) => {
   try {
     const checklist = await Checklist.findById(req.params.id);
-    if (!checklist) return res.status(404).json({ message: "Checklist not found" });
+    if (!checklist)
+      return res.status(404).json({ message: "Checklist not found" });
 
     const archive = archiver("zip", { zlib: { level: 9 } });
 
@@ -729,7 +835,9 @@ export const downloadChecklist = async (req, res) => {
         if (doc.fileUrl) {
           const filePath = path.join(".", doc.fileUrl);
           if (fs.existsSync(filePath)) {
-            archive.file(filePath, { name: `Documents/${category.category}/${doc.name}` });
+            archive.file(filePath, {
+              name: `Documents/${category.category}/${doc.name}`,
+            });
           }
         }
       });
@@ -751,9 +859,6 @@ export const downloadChecklist = async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 };
-
-
-
 
 export const submitToCoChecker = async (req, res) => {
   const { documents, supportingDocs, coGeneralComment } = req.body || {};
@@ -824,7 +929,7 @@ export const submitToCoChecker = async (req, res) => {
   }
 };
 
-  //  CO-CHECKER APPROVAL
+//  CO-CHECKER APPROVAL
 export const coCheckerApproval = async (req, res) => {
   try {
     const { checklistId } = req.params;

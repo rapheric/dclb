@@ -9,6 +9,7 @@ import path from "path";
 import coCreatorRoutes from "./routes/cocreatorRoutes.js";
 import rmRoutes from "./routes/rmRoutes.js";
 import checkerRoutes from "./routes/checkerRoutes.js";
+import deferralRoutes from "./routes/deferralRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -22,7 +23,6 @@ app.use(express.json());
 // app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // routes
@@ -35,11 +35,14 @@ app.use("/api/checkerChecklist", checkerRoutes);
 app.use("/api/rmChecklist", rmRoutes);
 app.use("/api/cocreatorChecklist", coCreatorRoutes);
 
+// Defferals
 
-
-// RM routes
+   // RM routes
 app.use("/api/rms", userRoutes);
 
 app.listen(process.env.PORT || 8000, () =>
   console.log(`✅ Server running on port ${process.env.PORT}`)
 );
+
+// defferal routes
+app.use("/api/deferrals", deferralRoutes);

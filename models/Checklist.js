@@ -30,9 +30,39 @@ const DocumentSchema = new mongoose.Schema(
     coCreatorFiles: [{ name: String, url: String }],
     fileUrl: { type: String, default: "" },
     comment: { type: String, default: "" },
-    rmStatus: { type: String, default: "" },
-    checkerStatus: { type: String, default: "pending" },
+    // rmStatus: { type: String, default: "" },
+
+    creatorStatus: {
+      type: String,
+      enum: [
+        "submitted",
+        "pendingrm",
+        "pendingco",
+        "deferred",
+        "tbo",
+        "waived",
+        "sighted",
+      ],
+    },
+
+    checkerStatus: {
+      type: String,
+      enum: ["approved", "rejected", "pending"],
+      default: "pending",
+    },
+
+    rmStatus: {
+      type: String,
+      enum: [
+        "defferal_requested",
+        "submitted_for_review",
+        "pending_from_customer",
+      ],
+      default: "pending_from_customer",
+    },
+    // checkerStatus: { type: String, default: "pending" },
     deferralReason: String,
+    expiryDate: { type: Date, default: null },
   },
   { timestamps: true }
 );
